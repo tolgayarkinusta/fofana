@@ -1,0 +1,5 @@
+numpy>=1.21.0
+pyzed>=3.8  # ZED SDK Python API
+torch>=2.0.0  # With CUDA support
+opencv-python>=4.5.0
+pytest>=7.0.0  # For testing
