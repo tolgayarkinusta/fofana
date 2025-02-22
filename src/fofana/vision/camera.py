@@ -25,7 +25,7 @@ class ZEDCamera:
         # Create camera configuration for marine environment
         self.init_params = sl.InitParameters()
         self.init_params.camera_resolution = sl.RESOLUTION.HD720
-        self.init_params.depth_mode = sl.DEPTH_MODE.STANDARD  # Better for obstacle detection
+        self.init_params.depth_mode = sl.DEPTH_MODE.QUALITY  # Better for untextured surfaces like water
         self.init_params.coordinate_units = sl.UNIT.METER
         self.init_params.sdk_cuda_ctx = True  # Enable CUDA context sharing
         self.init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP

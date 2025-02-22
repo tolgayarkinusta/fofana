@@ -113,14 +113,16 @@ class TaskManager:
         
         return True
         
-    def stop_task(self) -> None:
-        """Stop the current task safely."""
-        # Get first active task
-        active_tasks = list(self.active_processes.items())
-        if not active_tasks:
+    def stop_task(self, task_name: str) -> None:
+        """Stop a specific task safely.
+        
+        Args:
+            task_name: Name of the task to stop
+        """
+        if task_name not in self.active_processes:
             return
             
-        task_name, process_info = active_tasks[0]
+        process_info = self.active_processes[task_name]
         
         # Send stop command to task
         process_info['control_queue'].put('stop')
@@ -144,18 +146,28 @@ class TaskManager:
             self.usv_controller.disarm_vehicle()
             self.camera.close()
             
-    def get_task_state(self) -> Dict[str, Any]:
+    def get_task_state(self, task_name: str = None) -> Dict[str, Any]:
         """Get current task state information.
         
+        Args:
+            task_name: Optional name of task to get state for. If None, returns first active task.
+            
         Returns:
-            dict: Task state information
+            dict: Task state information including running state
         """
-        # Get first active task
+        if task_name and task_name in self.active_processes:
+            process_info = self.active_processes[task_name]
+            return {
+                "task": task_name,
+                "state": process_info['state'].value,
+                "running": True,  # Task is running if it exists in active_processes
+                "status": process_info['status_queue'].get() if not process_info['status_queue'].empty() else None
+            }
+            
+        # Get first active task if no specific task requested
         active_tasks = list(self.active_processes.items())
         if not active_tasks:
-            return {"state": "idle"}
-            
-        task_name, process_info = active_tasks[0]
+            return {"state": "idle", "running": False}
         
         # Get latest status update
         status = None
