@@ -169,5 +169,3 @@ class BuoyDetector:
                 return 'yellow'
             # Kameranın sol/sağına göre kırmızı/yeşil
             return 'red' if position[0] < 0 else 'green'
-            
-        return None
