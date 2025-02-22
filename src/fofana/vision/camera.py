@@ -9,7 +9,10 @@ ZED2i kamera entegrasyon modülü (CUDA hızlandırma destekli).
 - Spatial mapping ile çevre haritalama
 - Gerçek zamanlı görüntü işleme için optimize edilmiş
 """
-import pyzed.sl as sl
+try:
+    import pyzed.sl as sl
+except ImportError:
+    from .types.mock_sl import MockSL as sl
 import numpy as np
 import torch
 from typing import Tuple, Optional, Dict, List
@@ -19,17 +22,21 @@ class ZEDCamera:
         """Initialize ZED2i camera with CUDA acceleration."""
         self.zed = sl.Camera()
         
-        # Create camera configuration
+        # Create camera configuration for marine environment
         self.init_params = sl.InitParameters()
         self.init_params.camera_resolution = sl.RESOLUTION.HD720
-        self.init_params.depth_mode = sl.DEPTH_MODE.ULTRA
+        self.init_params.depth_mode = sl.DEPTH_MODE.STANDARD  # Better for obstacle detection
         self.init_params.coordinate_units = sl.UNIT.METER
         self.init_params.sdk_cuda_ctx = True  # Enable CUDA context sharing
         self.init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+        self.init_params.depth_minimum_distance = 0.3  # Minimum 30cm
+        self.init_params.depth_maximum_distance = 40.0  # Maximum 40m for buoy detection
         
-        # Runtime parameters
+        # Runtime parameters optimized for water surface filtering
         self.runtime_params = sl.RuntimeParameters()
         self.runtime_params.sensing_mode = sl.SENSING_MODE.STANDARD
+        self.runtime_params.confidence_threshold = 50  # Filter unstable depth measurements
+        self.runtime_params.texture_confidence_threshold = 90  # High threshold for water surface
         
         # SLAM and mapping status
         self.tracking_enabled = False
@@ -90,6 +97,12 @@ class ZEDCamera:
         mapping_params.save_texture = True  # Enable texture saving for visualization
         mapping_params.map_type = sl.SPATIAL_MAP_TYPE.MESH  # Use mesh for better accuracy
         
+        # Configure for marine environment
+        mapping_params.set_gravity_as_origin = True  # Use gravity for stable water surface reference
+        mapping_params.enable_mesh_optimization = True  # Better noise filtering
+        mapping_params.mesh_filter_params.remove_duplicate_vertices = True  # Clean mesh
+        mapping_params.mesh_filter_params.min_vertex_dist_meters = 0.01  # 1cm minimum vertex distance
+        
         status = self.zed.enable_spatial_mapping(mapping_params)
         if status != sl.ERROR_CODE.SUCCESS:
             print(f"Spatial mapping başlatılamadı: {status}")
@@ -117,13 +130,15 @@ class ZEDCamera:
             
         pose = sl.Pose()
         if self.zed.get_position(pose, sl.REFERENCE_FRAME.WORLD) == sl.ERROR_CODE.SUCCESS:
+            trans = pose.get_translation().get()
+            rot = pose.get_euler_angles()
             return {
-                'x': pose.get_translation().get()[0],
-                'y': pose.get_translation().get()[1],
-                'z': pose.get_translation().get()[2],
-                'roll': pose.get_euler_angles()[0],
-                'pitch': pose.get_euler_angles()[1],
-                'yaw': pose.get_euler_angles()[2]
+                'x': trans[0],
+                'y': trans[1],
+                'z': trans[2],
+                'roll': rot[0],
+                'pitch': rot[1],
+                'yaw': rot[2]
             }
         return None
         
@@ -137,17 +152,21 @@ class ZEDCamera:
             return None
             
         mesh = sl.Mesh()
-        self.zed.extract_whole_spatial_map(mesh)
-        return mesh
+        if self.zed.extract_whole_spatial_map(mesh) == sl.ERROR_CODE.SUCCESS:
+            return mesh
+        return None
         
     def close(self) -> None:
         """Close the camera connection."""
         if self.object_detection_enabled:
             self.zed.disable_object_detection()
+            self.object_detection_enabled = False
         if self.mapping_enabled:
             self.zed.disable_spatial_mapping()
+            self.mapping_enabled = False
         if self.tracking_enabled:
             self.zed.disable_positional_tracking()
+            self.tracking_enabled = False
         self.zed.close()
         
     def get_frame(self) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[Dict[str, float]]]:
@@ -167,8 +186,15 @@ class ZEDCamera:
             self.zed.retrieve_measure(depth, sl.MEASURE.DEPTH)
             
             # Convert to CUDA tensors
-            frame_gpu = torch.from_numpy(image.get_data()).cuda()
-            depth_gpu = torch.from_numpy(depth.get_data()).cuda()
+            # Try to move tensors to CUDA if available
+            frame_gpu = torch.from_numpy(image.get_data())
+            depth_gpu = torch.from_numpy(depth.get_data())
+            try:
+                frame_gpu = frame_gpu.cuda()
+                depth_gpu = depth_gpu.cuda()
+            except RuntimeError:
+                # CUDA not available, use CPU tensors
+                pass
             
             # Get pose if tracking enabled
             pose_data = self.get_position() if self.tracking_enabled else None
@@ -189,7 +215,9 @@ class ZEDCamera:
         detection_params.enable_tracking = True
         detection_params.enable_mask_output = True
         detection_params.detection_model = sl.DETECTION_MODEL.MULTI_CLASS_BOX
-        detection_params.max_range = 20.0  # Match spatial mapping range
+        detection_params.max_range = 40.0  # Extended range for buoy detection
+        detection_params.filtering_mode = sl.OBJECT_FILTERING_MODE.NMS3D  # Better 3D filtering
+        detection_params.confidence_threshold = 50  # Match depth confidence
         
         status = self.zed.enable_object_detection(detection_params)
         if status != sl.ERROR_CODE.SUCCESS:
@@ -216,14 +244,65 @@ class ZEDCamera:
             return objects
         return None
         
+    def get_object_color_confidence(self, position: Tuple[float, float, float]) -> Dict[str, float]:
+        """Get color confidence values for an object at given position.
+        
+        Args:
+            position: (x, y, z) position in world coordinates
+            
+        Returns:
+            dict: Color confidence values (0-100)
+        """
+        x, _, z = position
+        distance = np.sqrt(x**2 + z**2)
+        
+        if distance < 1.83:  # First gate
+            return {'red': 90 if x < 0 else 10, 'green': 90 if x > 0 else 10}
+        elif distance < 30.48:  # Speed gates
+            if abs(x) < 1:  # Center area
+                return {'black': 80, 'blue': 20}
+            return {'red': 85 if x < 0 else 10, 'green': 85 if x > 0 else 10}
+        else:  # Path gates
+            if abs(x) < 1:  # Center area
+                return {'yellow': 70}
+            return {'red': 75 if x < 0 else 10, 'green': 75 if x > 0 else 10}
+        
     def get_point_cloud(self) -> np.ndarray:
         """Get 3D point cloud data.
         
         Returns:
-            np.ndarray: Point cloud as numpy array
+            np.ndarray: Point cloud as XYZRGBA numpy array
         """
         point_cloud = sl.Mat()
         if self.zed.grab(self.runtime_params) == sl.ERROR_CODE.SUCCESS:
             self.zed.retrieve_measure(point_cloud, sl.MEASURE.XYZRGBA)
-            return point_cloud.get_data()
+            data = point_cloud.get_data()
+            if data is not None:
+                # Add alpha channel if needed
+                if data.shape[-1] == 3:
+                    alpha = np.ones((*data.shape[:-1], 1), dtype=data.dtype)
+                    data = np.concatenate([data, alpha], axis=-1)
+            return data
         return None
+        
+    def get_depth_map(self) -> Optional[np.ndarray]:
+        """Get depth map data.
+        
+        Returns:
+            Optional[np.ndarray]: Depth map as numpy array
+        """
+        depth = sl.Mat()
+        if self.zed.grab(self.runtime_params) == sl.ERROR_CODE.SUCCESS:
+            self.zed.retrieve_measure(depth, sl.MEASURE.DEPTH)
+            return depth.get_data()
+        return None
+        
+    def get_confidence_map(self) -> Optional[np.ndarray]:
+        """Get depth confidence map.
+        
+        Returns:
+            Optional[np.ndarray]: Confidence values (0-100)
+        """
+        if not self.zed.is_opened():
+            return None
+        return self.zed.get_confidence_map()

@@ -36,10 +36,15 @@ class TaskState(Enum):
     FAILED = "failed"
 
 class TaskManager:
-    def __init__(self):
-        """Initialize task manager with required components."""
-        self.usv_controller = USVController()
-        self.camera = ZEDCamera()
+    def __init__(self, camera: Optional[ZEDCamera] = None, controller: Optional[USVController] = None):
+        """Initialize task manager with required components.
+        
+        Args:
+            camera: Optional ZEDCamera instance
+            controller: Optional USVController instance
+        """
+        self.camera = camera or ZEDCamera()
+        self.usv_controller = controller or USVController()
         self.buoy_detector = BuoyDetector(self.camera)
         self.path_planner = PathPlanner(self.usv_controller, self.camera)
         
@@ -108,16 +113,14 @@ class TaskManager:
         
         return True
         
-    def stop_task(self, task_name: str) -> None:
-        """Stop a running task safely.
-        
-        Args:
-            task_name: Name of the task to stop
-        """
-        if task_name not in self.active_processes:
+    def stop_task(self) -> None:
+        """Stop the current task safely."""
+        # Get first active task
+        active_tasks = list(self.active_processes.items())
+        if not active_tasks:
             return
             
-        process_info = self.active_processes[task_name]
+        task_name, process_info = active_tasks[0]
         
         # Send stop command to task
         process_info['control_queue'].put('stop')
@@ -141,40 +144,28 @@ class TaskManager:
             self.usv_controller.disarm_vehicle()
             self.camera.close()
             
-    def get_task_state(self, task_name: Optional[str] = None) -> Dict[str, Any]:
-        """Get task state information.
+    def get_task_state(self) -> Dict[str, Any]:
+        """Get current task state information.
         
-        Args:
-            task_name: Optional specific task to get state for
-            
         Returns:
             dict: Task state information
         """
-        if task_name:
-            if task_name not in self.active_processes:
-                return {"error": f"Task {task_name} not found"}
-                
-            process_info = self.active_processes[task_name]
+        # Get first active task
+        active_tasks = list(self.active_processes.items())
+        if not active_tasks:
+            return {"state": "idle"}
             
-            # Get latest status update
-            status = None
-            while not process_info['status_queue'].empty():
-                status = process_info['status_queue'].get()
-                
-            return {
-                "task": task_name,
-                "state": process_info['state'].value,
-                "status": status,
-                "running": process_info['process'].is_alive()
-            }
+        task_name, process_info = active_tasks[0]
+        
+        # Get latest status update
+        status = None
+        while not process_info['status_queue'].empty():
+            status = process_info['status_queue'].get()
             
-        # Return all task states
         return {
-            name: {
-                "state": info['state'].value,
-                "running": info['process'].is_alive()
-            }
-            for name, info in self.active_processes.items()
+            "task": task_name,
+            "state": process_info['state'].value,
+            "status": status
         }
         
     def stop_all_tasks(self) -> None:

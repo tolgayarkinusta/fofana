@@ -6,16 +6,19 @@ import sys
 import os
 
 # Use mock camera for testing
-from fofana.vision.mock_camera import MockZEDCamera as ZEDCamera
+from fofana.vision.types.mock_sl import MockSL as sl
+from fofana.vision.mock_camera import MockZEDCamera
 from fofana.navigation.buoy_detector import BuoyDetector
-from fofana.navigation.path_planner import PathPlanner
+from fofana.navigation.path_planner import (
+    PathPlanner, FIRST_GATE_SPACING_MAX, GATE_WIDTH_MIN, GATE_WIDTH_MAX
+)
 from fofana.core.mavlink_controller import USVController
 from fofana.tasks.task_manager import TaskManager
 
 def test_system_initialization():
     """Test complete system initialization."""
     # Initialize camera
-    camera = ZEDCamera()
+    camera = MockZEDCamera()
     assert camera.open(), "Failed to open camera"
     assert camera.enable_positional_tracking(), "Failed to enable tracking"
     assert camera.enable_spatial_mapping(), "Failed to enable mapping"
@@ -94,9 +97,38 @@ def test_task_execution():
     # Cleanup
     task_manager.stop_all_tasks()
 
+def test_obstacle_avoidance():
+    """Test obstacle avoidance with yellow buoys and vessels."""
+    camera = MockZEDCamera()
+    detector = BuoyDetector(camera)
+    planner = PathPlanner(USVController(), camera)
+    
+    # Test yellow buoy detection
+    frame = camera.get_frame()[0]  # Get RGB frame
+    obstacles = detector.detect_obstacles(frame)
+    assert len(obstacles['yellow_buoys']) > 0, "No yellow buoys detected"
+    
+    # Verify costmap generation
+    planner.update_costmap()
+    assert planner.costmap is not None, "Failed to generate costmap"
+    
+    # Check safety margins
+    yellow_pos = obstacles['yellow_buoys'][0]['position']
+    x, y = planner._world_to_costmap(yellow_pos)
+    assert planner.costmap[y, x] >= 0.8, "Insufficient safety margin for endangered species"
+    
+    # Test vessel detection
+    assert len(obstacles['stationary_vessels']) > 0, "No vessels detected"
+    vessel_pos = obstacles['stationary_vessels'][0]['position']
+    x, y = planner._world_to_costmap(vessel_pos)
+    assert planner.costmap[y, x] >= 0.9, "Insufficient safety margin for vessels"
+    
+    # Cleanup
+    camera.close()
+
 def test_buoy_specifications():
     """Test buoy detection with competition specifications."""
-    camera = ZEDCamera()
+    camera = MockZEDCamera()
     detector = BuoyDetector(camera)
     
     camera.open()
@@ -121,7 +153,7 @@ def test_buoy_specifications():
             f"Invalid navigation buoy height: {height}m"
         assert 0.8 * 0.4572 <= diameter <= 1.2 * 0.4572, \
             f"Invalid navigation buoy diameter: {diameter}m"
-        assert distance < 1.83, \
+        assert distance < FIRST_GATE_SPACING_MAX, \
             f"Navigation buoy too far: {distance}m"
             
     # Test speed gate buoys (Polyform A-2)
