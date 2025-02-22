@@ -71,6 +71,7 @@ class ZEDCamera:
             bool: True if tracking enabled successfully
         """
         if not self.zed.is_opened():
+            print("Kamera açık değil!")
             return False
             
         tracking_params = sl.PositionalTrackingParameters()
@@ -83,6 +84,19 @@ class ZEDCamera:
         status = self.zed.enable_positional_tracking(tracking_params)
         if status != sl.ERROR_CODE.SUCCESS:
             print(f"Pozisyon takibi başlatılamadı: {status}")
+            # Cleanup on failure
+            self.zed.disable_positional_tracking()
+            return False
+            
+        # Wait briefly for tracking to initialize
+        import time
+        time.sleep(0.5)
+        
+        # Verify tracking state
+        tracking_state = self.zed.get_position_state()
+        if tracking_state != sl.POSITIONAL_TRACKING_STATE.OK:
+            print(f"Pozisyon takibi başlatılamadı! Durum: {tracking_state}")
+            self.zed.disable_positional_tracking()
             return False
             
         self.tracking_enabled = True
@@ -96,7 +110,18 @@ class ZEDCamera:
         Returns:
             bool: True if mapping enabled successfully
         """
-        if not self.zed.is_opened() or not self.tracking_enabled:
+        if not self.zed.is_opened():
+            print("Kamera açık değil!")
+            return False
+            
+        if not self.tracking_enabled:
+            print("Pozisyon takibi etkin değil! Önce pozisyon takibini etkinleştirin.")
+            return False
+            
+        # Verify tracking is actually running
+        tracking_state = self.zed.get_position_state()
+        if tracking_state != sl.POSITIONAL_TRACKING_STATE.OK:
+            print(f"Pozisyon takibi hazır değil! Durum: {tracking_state}")
             return False
             
         mapping_params = sl.SpatialMappingParameters()
