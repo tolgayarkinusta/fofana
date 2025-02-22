@@ -25,6 +25,11 @@ class BuoyDetector:
         """
         self.camera = camera
         
+        # Detection parameters
+        self.depth_min = 0.3  # Minimum 30cm
+        self.depth_max = 40.0  # Maximum 40m
+        self.confidence_threshold = 50  # Minimum confidence score
+        
         # Buoy specifications (in meters)
         self.buoy_specs = {
             'navigation_gate': {  # İlk geçit - Taylor Made Sur-Mark
@@ -135,6 +140,81 @@ class BuoyDetector:
                 return self._classify_color(position)
                 
         return None  # Boyutlar uyuşmuyorsa şamandıra değil
+        
+    def detect_obstacles(self, frame: np.ndarray) -> Dict[str, List[Dict]]:
+        """Detect all obstacles including buoys and vessels.
+        
+        Args:
+            frame: RGB görüntü (numpy dizisi)
+            
+        Returns:
+            Dict[str, List[Dict]]: Tespit edilen engeller kategorilere göre
+        """
+        obstacles = {
+            'yellow_buoys': [],
+            'stationary_vessels': [],
+            'other': []
+        }
+        
+        # Get depth and point cloud data
+        point_cloud = self.camera.get_point_cloud()
+        depth_map = self.camera.get_depth_map()
+        if depth_map is None or point_cloud is None:
+            return obstacles
+            
+        # Filter by depth range and confidence
+        mask = (depth_map > self.depth_min) & (depth_map < self.depth_max)
+        confidence = self.camera.get_confidence_map()
+        if confidence is not None:
+            mask &= (confidence > self.confidence_threshold)
+            
+        # Get all detected objects
+        objects = self.camera.get_objects()
+        if objects is None:
+            return obstacles
+            
+        # Process each detected object
+        for obj in objects.object_list:
+            if obj.confidence < self.confidence_threshold:
+                continue
+                
+            position = obj.position
+            dimensions = obj.dimensions
+            distance = np.sqrt(position[0]**2 + position[2]**2)
+            
+            # Check if object matches yellow buoy dimensions (Polyform A-0)
+            if (0.8 * self.buoy_specs['path_gate']['height'] <= dimensions[1] <= 1.2 * self.buoy_specs['path_gate']['height'] and
+                0.8 * self.buoy_specs['path_gate']['diameter'] <= max(dimensions[0], dimensions[2]) <= 1.2 * self.buoy_specs['path_gate']['diameter']):
+                
+                color_confidence = self.camera.get_object_color_confidence(position)
+                if color_confidence.get('yellow', 0) > self.confidence_threshold:
+                    obstacles['yellow_buoys'].append({
+                        'position': tuple(position),
+                        'dimensions': (0.203, 0.1524, 0.203),  # Polyform A-0
+                        'confidence': obj.confidence,
+                        'distance': distance
+                    })
+                    continue
+                    
+            # Check for stationary vessels (larger objects)
+            if dimensions[1] > 0.5:  # Height > 50cm
+                obstacles['stationary_vessels'].append({
+                    'position': tuple(position),
+                    'dimensions': tuple(dimensions),
+                    'confidence': obj.confidence,
+                    'distance': distance
+                })
+                continue
+                
+            # Other obstacles
+            obstacles['other'].append({
+                'position': tuple(position),
+                'dimensions': tuple(dimensions),
+                'confidence': obj.confidence,
+                'distance': distance
+            })
+            
+        return obstacles
         
     def _classify_color(self, position: Tuple[float, float, float]) -> str:
         """Şamandıra rengini konuma göre sınıflandırır.
