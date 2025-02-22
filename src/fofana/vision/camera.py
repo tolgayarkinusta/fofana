@@ -5,11 +5,14 @@ ZED2i kamera entegrasyon modülü (CUDA hızlandırma destekli).
 - HD720 çözünürlükte görüntü yakalama
 - CUDA destekli derinlik algılama
 - Stereo görüş ile 3B nokta bulutu oluşturma
+- SLAM tabanlı konum takibi
+- Spatial mapping ile çevre haritalama
 - Gerçek zamanlı görüntü işleme için optimize edilmiş
 """
 import pyzed.sl as sl
 import numpy as np
 import torch
+from typing import Tuple, Optional, Dict, List
 
 class ZEDCamera:
     def __init__(self):
@@ -22,10 +25,16 @@ class ZEDCamera:
         self.init_params.depth_mode = sl.DEPTH_MODE.ULTRA
         self.init_params.coordinate_units = sl.UNIT.METER
         self.init_params.sdk_cuda_ctx = True  # Enable CUDA context sharing
+        self.init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
         
         # Runtime parameters
         self.runtime_params = sl.RuntimeParameters()
         self.runtime_params.sensing_mode = sl.SENSING_MODE.STANDARD
+        
+        # SLAM and mapping status
+        self.tracking_enabled = False
+        self.mapping_enabled = False
+        self.object_detection_enabled = False
         
     def open(self) -> bool:
         """Open the camera connection.
@@ -36,15 +45,119 @@ class ZEDCamera:
         status = self.zed.open(self.init_params)
         return status == sl.ERROR_CODE.SUCCESS
         
-    def close(self) -> None:
-        """Close the camera connection."""
-        self.zed.close()
-        
-    def get_frame(self) -> tuple:
-        """Capture and retrieve camera frame with depth.
+    def enable_positional_tracking(self) -> bool:
+        """Enable SLAM-based positional tracking.
         
         Returns:
-            tuple: (image_np, depth_np) - RGB image and depth map as numpy arrays
+            bool: True if tracking enabled successfully
+        """
+        if not self.zed.is_opened():
+            return False
+            
+        tracking_params = sl.PositionalTrackingParameters()
+        tracking_params.set_as_static = False
+        tracking_params.set_floor_as_origin = True
+        tracking_params.enable_area_memory = True
+        tracking_params.enable_pose_smoothing = True
+        tracking_params.set_gravity_as_origin = True
+        
+        status = self.zed.enable_positional_tracking(tracking_params)
+        if status != sl.ERROR_CODE.SUCCESS:
+            print(f"Pozisyon takibi başlatılamadı: {status}")
+            return False
+            
+        self.tracking_enabled = True
+        return True
+        
+    def enable_spatial_mapping(self, resolution: float = 0.1, range: float = 20.0) -> bool:
+        """Enable spatial mapping for environment reconstruction.
+        
+        Args:
+            resolution: Spatial mapping resolution in meters
+            range: Maximum mapping range in meters
+            
+        Returns:
+            bool: True if mapping enabled successfully
+        """
+        if not self.zed.is_opened() or not self.tracking_enabled:
+            return False
+            
+        mapping_params = sl.SpatialMappingParameters()
+        mapping_params.resolution_meter = resolution
+        mapping_params.range_meter = range
+        mapping_params.use_chunk_only = True
+        mapping_params.max_memory_usage = 2048  # 2GB memory limit
+        mapping_params.save_texture = True  # Enable texture saving for visualization
+        mapping_params.map_type = sl.SPATIAL_MAP_TYPE.MESH  # Use mesh for better accuracy
+        
+        status = self.zed.enable_spatial_mapping(mapping_params)
+        if status != sl.ERROR_CODE.SUCCESS:
+            print(f"Spatial mapping başlatılamadı: {status}")
+            return False
+            
+        self.mapping_enabled = True
+        return True
+        
+    def get_position(self) -> Optional[Dict[str, float]]:
+        """Get current camera position and orientation.
+        
+        Returns:
+            Optional[Dict[str, float]]: Position and orientation data
+                {
+                    'x': x position in meters,
+                    'y': y position in meters,
+                    'z': z position in meters,
+                    'roll': roll angle in radians,
+                    'pitch': pitch angle in radians,
+                    'yaw': yaw angle in radians
+                }
+        """
+        if not self.tracking_enabled:
+            return None
+            
+        pose = sl.Pose()
+        if self.zed.get_position(pose, sl.REFERENCE_FRAME.WORLD) == sl.ERROR_CODE.SUCCESS:
+            return {
+                'x': pose.get_translation().get()[0],
+                'y': pose.get_translation().get()[1],
+                'z': pose.get_translation().get()[2],
+                'roll': pose.get_euler_angles()[0],
+                'pitch': pose.get_euler_angles()[1],
+                'yaw': pose.get_euler_angles()[2]
+            }
+        return None
+        
+    def get_spatial_map(self) -> Optional[sl.Mesh]:
+        """Get current spatial map.
+        
+        Returns:
+            Optional[sl.Mesh]: 3D mesh of the environment
+        """
+        if not self.mapping_enabled:
+            return None
+            
+        mesh = sl.Mesh()
+        self.zed.extract_whole_spatial_map(mesh)
+        return mesh
+        
+    def close(self) -> None:
+        """Close the camera connection."""
+        if self.object_detection_enabled:
+            self.zed.disable_object_detection()
+        if self.mapping_enabled:
+            self.zed.disable_spatial_mapping()
+        if self.tracking_enabled:
+            self.zed.disable_positional_tracking()
+        self.zed.close()
+        
+    def get_frame(self) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[Dict[str, float]]]:
+        """Capture and retrieve camera frame with depth and pose.
+        
+        Returns:
+            Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[Dict[str, float]]]:
+                RGB frame as CUDA tensor
+                Depth map as CUDA tensor
+                Camera pose data (if tracking enabled)
         """
         image = sl.Mat()
         depth = sl.Mat()
@@ -53,8 +166,55 @@ class ZEDCamera:
             self.zed.retrieve_image(image, sl.VIEW.LEFT)
             self.zed.retrieve_measure(depth, sl.MEASURE.DEPTH)
             
-            return image.get_data(), depth.get_data()
+            # Convert to CUDA tensors
+            frame_gpu = torch.from_numpy(image.get_data()).cuda()
+            depth_gpu = torch.from_numpy(depth.get_data()).cuda()
+            
+            # Get pose if tracking enabled
+            pose_data = self.get_position() if self.tracking_enabled else None
+            
+            return frame_gpu, depth_gpu, pose_data
         return None, None
+        
+    def enable_object_detection(self) -> bool:
+        """Enable object detection with tracking and mask output.
+        
+        Returns:
+            bool: True if object detection enabled successfully
+        """
+        if not self.zed.is_opened():
+            return False
+            
+        detection_params = sl.ObjectDetectionParameters()
+        detection_params.enable_tracking = True
+        detection_params.enable_mask_output = True
+        detection_params.detection_model = sl.DETECTION_MODEL.MULTI_CLASS_BOX
+        detection_params.max_range = 20.0  # Match spatial mapping range
+        
+        status = self.zed.enable_object_detection(detection_params)
+        if status != sl.ERROR_CODE.SUCCESS:
+            print(f"Nesne tespiti başlatılamadı: {status}")
+            return False
+            
+        self.object_detection_enabled = True
+        return True
+        
+    def get_objects(self) -> Optional[sl.Objects]:
+        """Get detected objects with tracking information.
+        
+        Returns:
+            Optional[sl.Objects]: Detected objects with position and tracking
+        """
+        if not self.object_detection_enabled:
+            return None
+            
+        objects = sl.Objects()
+        runtime_params = sl.ObjectDetectionRuntimeParameters()
+        runtime_params.detection_confidence_threshold = 50
+        
+        if self.zed.retrieve_objects(objects, runtime_params) == sl.ERROR_CODE.SUCCESS:
+            return objects
+        return None
         
     def get_point_cloud(self) -> np.ndarray:
         """Get 3D point cloud data.

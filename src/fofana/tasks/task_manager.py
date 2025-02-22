@@ -10,17 +10,23 @@ Bu modül şu görevleri yönetir:
 6. Eve Dönüş: Başlangıç noktasına dönüş
 
 Her görev için:
+- Multiprocessing ile paralel çalışma
+- İşlemler arası haberleşme (queue)
 - Güvenli başlatma/durdurma
-- Durum takibi
-- Hata yönetimi
-- Sensör ve motor kontrolü
+- Durum takibi ve hata yönetimi
 """
+import multiprocessing as mp
 from enum import Enum
 from typing import Optional, Dict, Any
 from ..core.mavlink_controller import USVController
 from ..vision.camera import ZEDCamera
 from ..navigation.buoy_detector import BuoyDetector
 from ..navigation.path_planner import PathPlanner
+from .navigation_task import NavigationTask
+from .mapping_task import MappingTask
+from .docking_task import DockingTask
+from .rescue_task import RescueTask
+from .return_home_task import ReturnHomeTask
 
 class TaskState(Enum):
     """Task states for state machine."""
@@ -34,13 +40,24 @@ class TaskManager:
         """Initialize task manager with required components."""
         self.usv_controller = USVController()
         self.camera = ZEDCamera()
-        self.buoy_detector = BuoyDetector()
-        self.path_planner = PathPlanner(self.usv_controller)
-        self.current_task: Optional[str] = None
+        self.buoy_detector = BuoyDetector(self.camera)
+        self.path_planner = PathPlanner(self.usv_controller, self.camera)
+        
+        # Task registry
+        self.tasks = {
+            'navigation': NavigationTask,
+            'mapping': MappingTask,
+            'docking': DockingTask,
+            'rescue': RescueTask,
+            'return_home': ReturnHomeTask
+        }
+        
+        # Active processes and queues
+        self.active_processes: Dict[str, Dict[str, Any]] = {}
         self.task_state = TaskState.IDLE
         
     def start_task(self, task_name: str, params: Dict[str, Any] = None) -> bool:
-        """Start a competition task.
+        """Start a competition task in a separate process.
         
         Args:
             task_name: Name of the task to start
@@ -49,43 +66,118 @@ class TaskManager:
         Returns:
             bool: True if task started successfully
         """
-        if self.task_state == TaskState.RUNNING:
+        if task_name not in self.tasks:
+            print(f"Unknown task: {task_name}")
             return False
             
-        self.current_task = task_name
-        self.task_state = TaskState.RUNNING
+        if task_name in self.active_processes:
+            print(f"Task {task_name} is already running")
+            return False
+            
+        # Create communication queues
+        control_queue = mp.Queue()
+        status_queue = mp.Queue()
         
-        # Initialize task-specific components
+        # Initialize camera and vehicle
         if not self.camera.open():
-            self.task_state = TaskState.FAILED
+            print("Failed to open camera")
             return False
             
         try:
             self.usv_controller.arm_vehicle()
         except Exception as e:
             print(f"Failed to arm vehicle: {e}")
-            self.task_state = TaskState.FAILED
+            self.camera.close()
             return False
             
+        # Start task process
+        process = mp.Process(
+            target=self.tasks[task_name],
+            args=(control_queue, status_queue),
+            kwargs={'params': params} if params else {}
+        )
+        process.start()
+        
+        # Store process information
+        self.active_processes[task_name] = {
+            'process': process,
+            'control_queue': control_queue,
+            'status_queue': status_queue,
+            'state': TaskState.RUNNING
+        }
+        
         return True
         
-    def stop_task(self) -> None:
-        """Stop the current task safely."""
-        if self.task_state == TaskState.RUNNING:
+    def stop_task(self, task_name: str) -> None:
+        """Stop a running task safely.
+        
+        Args:
+            task_name: Name of the task to stop
+        """
+        if task_name not in self.active_processes:
+            return
+            
+        process_info = self.active_processes[task_name]
+        
+        # Send stop command to task
+        process_info['control_queue'].put('stop')
+        
+        # Wait for process to finish (with timeout)
+        process_info['process'].join(timeout=5)
+        
+        # Force terminate if still running
+        if process_info['process'].is_alive():
+            process_info['process'].terminate()
+            process_info['process'].join()
+            
+        # Cleanup
+        process_info['control_queue'].close()
+        process_info['status_queue'].close()
+        del self.active_processes[task_name]
+        
+        # Stop hardware if no more tasks
+        if not self.active_processes:
             self.usv_controller.stop_motors()
             self.usv_controller.disarm_vehicle()
             self.camera.close()
-            self.task_state = TaskState.IDLE
-            self.current_task = None
             
-    def get_task_state(self) -> Dict[str, Any]:
-        """Get current task state information.
+    def get_task_state(self, task_name: Optional[str] = None) -> Dict[str, Any]:
+        """Get task state information.
         
+        Args:
+            task_name: Optional specific task to get state for
+            
         Returns:
-            dict: Current task state and information
+            dict: Task state information
         """
+        if task_name:
+            if task_name not in self.active_processes:
+                return {"error": f"Task {task_name} not found"}
+                
+            process_info = self.active_processes[task_name]
+            
+            # Get latest status update
+            status = None
+            while not process_info['status_queue'].empty():
+                status = process_info['status_queue'].get()
+                
+            return {
+                "task": task_name,
+                "state": process_info['state'].value,
+                "status": status,
+                "running": process_info['process'].is_alive()
+            }
+            
+        # Return all task states
         return {
-            "task": self.current_task,
-            "state": self.task_state.value,
-            "armed": self.usv_controller is not None
+            name: {
+                "state": info['state'].value,
+                "running": info['process'].is_alive()
+            }
+            for name, info in self.active_processes.items()
         }
+        
+    def stop_all_tasks(self) -> None:
+        """Stop all running tasks safely."""
+        for task_name in list(self.active_processes.keys()):
+            self.stop_task(task_name)
