@@ -142,6 +142,8 @@ class ZEDCamera:
         
     def close(self) -> None:
         """Close the camera connection."""
+        if self.object_detection_enabled:
+            self.zed.disable_object_detection()
         if self.mapping_enabled:
             self.zed.disable_spatial_mapping()
         if self.tracking_enabled:
@@ -173,6 +175,46 @@ class ZEDCamera:
             
             return frame_gpu, depth_gpu, pose_data
         return None, None
+        
+    def enable_object_detection(self) -> bool:
+        """Enable object detection with tracking and mask output.
+        
+        Returns:
+            bool: True if object detection enabled successfully
+        """
+        if not self.zed.is_opened():
+            return False
+            
+        detection_params = sl.ObjectDetectionParameters()
+        detection_params.enable_tracking = True
+        detection_params.enable_mask_output = True
+        detection_params.detection_model = sl.DETECTION_MODEL.MULTI_CLASS_BOX
+        detection_params.max_range = 20.0  # Match spatial mapping range
+        
+        status = self.zed.enable_object_detection(detection_params)
+        if status != sl.ERROR_CODE.SUCCESS:
+            print(f"Nesne tespiti başlatılamadı: {status}")
+            return False
+            
+        self.object_detection_enabled = True
+        return True
+        
+    def get_objects(self) -> Optional[sl.Objects]:
+        """Get detected objects with tracking information.
+        
+        Returns:
+            Optional[sl.Objects]: Detected objects with position and tracking
+        """
+        if not self.object_detection_enabled:
+            return None
+            
+        objects = sl.Objects()
+        runtime_params = sl.ObjectDetectionRuntimeParameters()
+        runtime_params.detection_confidence_threshold = 50
+        
+        if self.zed.retrieve_objects(objects, runtime_params) == sl.ERROR_CODE.SUCCESS:
+            return objects
+        return None
         
     def get_point_cloud(self) -> np.ndarray:
         """Get 3D point cloud data.
