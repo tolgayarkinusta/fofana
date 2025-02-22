@@ -130,13 +130,15 @@ class ZEDCamera:
             
         pose = sl.Pose()
         if self.zed.get_position(pose, sl.REFERENCE_FRAME.WORLD) == sl.ERROR_CODE.SUCCESS:
+            trans = pose.get_translation().get()
+            rot = pose.get_euler_angles()
             return {
-                'x': pose.get_translation().get()[0],
-                'y': pose.get_translation().get()[1],
-                'z': pose.get_translation().get()[2],
-                'roll': pose.get_euler_angles()[0],
-                'pitch': pose.get_euler_angles()[1],
-                'yaw': pose.get_euler_angles()[2]
+                'x': trans[0],
+                'y': trans[1],
+                'z': trans[2],
+                'roll': rot[0],
+                'pitch': rot[1],
+                'yaw': rot[2]
             }
         return None
         
@@ -150,8 +152,9 @@ class ZEDCamera:
             return None
             
         mesh = sl.Mesh()
-        self.zed.extract_whole_spatial_map(mesh)
-        return mesh
+        if self.zed.extract_whole_spatial_map(mesh) == sl.ERROR_CODE.SUCCESS:
+            return mesh
+        return None
         
     def close(self) -> None:
         """Close the camera connection."""
@@ -265,10 +268,28 @@ class ZEDCamera:
         """Get 3D point cloud data.
         
         Returns:
-            np.ndarray: Point cloud as numpy array
+            np.ndarray: Point cloud as XYZRGBA numpy array
         """
         point_cloud = sl.Mat()
         if self.zed.grab(self.runtime_params) == sl.ERROR_CODE.SUCCESS:
             self.zed.retrieve_measure(point_cloud, sl.MEASURE.XYZRGBA)
-            return point_cloud.get_data()
+            data = point_cloud.get_data()
+            if data is not None:
+                # Add alpha channel if needed
+                if data.shape[-1] == 3:
+                    alpha = np.ones((*data.shape[:-1], 1), dtype=data.dtype)
+                    data = np.concatenate([data, alpha], axis=-1)
+            return data
+        return None
+        
+    def get_depth_map(self) -> Optional[np.ndarray]:
+        """Get depth map data.
+        
+        Returns:
+            Optional[np.ndarray]: Depth map as numpy array
+        """
+        depth = sl.Mat()
+        if self.zed.grab(self.runtime_params) == sl.ERROR_CODE.SUCCESS:
+            self.zed.retrieve_measure(depth, sl.MEASURE.DEPTH)
+            return depth.get_data()
         return None
