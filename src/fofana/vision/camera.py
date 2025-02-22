@@ -100,8 +100,8 @@ class ZEDCamera:
             return False
             
         mapping_params = sl.SpatialMappingParameters()
-        mapping_params.resolution_meter = sl.MAPPING_RESOLUTION.LOW  # Better for outdoor/marine
-        mapping_params.range_meter = sl.MAPPING_RANGE.LONG  # Extended range for marine environment
+        mapping_params.resolution_meter = 0.2  # LOW resolution (0.2m) for outdoor/marine
+        mapping_params.range_meter = 40.0  # LONG range (40m) for marine environment
         mapping_params.use_chunk_only = True  # Memory efficient mapping
         mapping_params.max_memory_usage = 2048  # 2GB memory limit
         mapping_params.save_texture = True  # Enable texture for visualization
