@@ -1,6 +1,6 @@
 """Mock ZED SDK types for testing."""
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Optional, Tuple
 import numpy as np
 
 class ERROR_CODE:
@@ -20,23 +20,29 @@ class DEPTH_MODE:
     NEURAL_PLUS = 5
 
 class UNIT:
-    METER = 0
+    MILLIMETER = 0
+    METER = 1
 
 class COORDINATE_SYSTEM:
-    RIGHT_HANDED_Y_UP = 0
-    RIGHT_HANDED_Z_UP = 1
+    IMAGE = 0
+    RIGHT_HANDED_Y_UP = 1
+    RIGHT_HANDED_Z_UP = 2
 
 class SENSING_MODE:
     STANDARD = 0
 
 class REFERENCE_FRAME:
-    WORLD = 0
+    WORLD = 0  # The transform of sl.Pose will contain the motion with reference to the world frame
+    CAMERA = 1  # The transform of sl.Pose will contain the motion with reference to the previous camera frame
 
 class SPATIAL_MAP_TYPE:
     MESH = 0
 
 class DETECTION_MODEL:
-    MULTI_CLASS_BOX = 0
+    MULTI_CLASS_BOX_FAST = 0  # Default model for general purpose detection
+    MULTI_CLASS_BOX_MEDIUM = 1  # Better accuracy but slower
+    MULTI_CLASS_BOX_ACCURATE = 2  # Best accuracy but slowest
+    PERSON_HEAD_BOX = 3  # Specialized for head detection
 
 class OBJECT_FILTERING_MODE:
     NMS3D = 0
@@ -111,16 +117,28 @@ class InitParameters:
     camera_resolution: int = RESOLUTION.HD720
     depth_mode: int = DEPTH_MODE.QUALITY
     coordinate_units: int = UNIT.METER
-    sdk_cuda_ctx: bool = True
     coordinate_system: int = COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+    sdk_verbose: int = 1
+    sdk_gpu_id: int = -1
     depth_minimum_distance: float = 0.3
     depth_maximum_distance: float = 40.0
+    enable_image_enhancement: bool = True
+    camera_fps: int = 30
+    depth_stabilization: bool = True
+    enable_right_side_measure: bool = False
+    camera_disable_self_calib: bool = False
+    optional_settings_path: str = ""
+    sensors_required: bool = False
+    enable_image_validity_check: bool = False
 
 @dataclass
 class RuntimeParameters:
-    sensing_mode: int = SENSING_MODE.STANDARD
-    confidence_threshold: int = 50
-    texture_confidence_threshold: int = 90
+    enable_depth: bool = True
+    confidence_threshold: int = 95
+    texture_confidence_threshold: int = 100
+    remove_saturated_areas: bool = True
+    measure3D_reference_frame: int = REFERENCE_FRAME.WORLD
+    enable_fill_mode: bool = False
 
 @dataclass
 class PositionalTrackingParameters:
@@ -151,13 +169,31 @@ class SpatialMappingParameters:
         self.mesh_filter_params = MeshFilterParameters()
 
 @dataclass
+class BatchParameters:
+    """Default batch parameters."""
+    pass
+
+@dataclass
+class Resolution:
+    """Resolution class."""
+    def __init__(self, width: int = 512, height: int = 512):
+        self.width = width
+        self.height = height
+
+@dataclass
 class ObjectDetectionParameters:
     enable_tracking: bool = True
-    enable_mask_output: bool = True
-    detection_model: int = DETECTION_MODEL.MULTI_CLASS_BOX
-    max_range: float = 40.0
+    enable_segmentation: bool = False
+    detection_model: int = DETECTION_MODEL.MULTI_CLASS_BOX_FAST
+    max_range: float = -1.0
     filtering_mode: int = OBJECT_FILTERING_MODE.NMS3D
-    confidence_threshold: int = 50
+    prediction_timeout_s: float = 0.2
+    allow_reduced_precision_inference: bool = False
+    instance_module_id: int = 0
+    batch_trajectories_parameters: BatchParameters = field(default_factory=BatchParameters)
+    fused_objects_group_name: str = ""
+    custom_onnx_file: str = ""
+    custom_onnx_dynamic_input_shape: Resolution = field(default_factory=Resolution)
 
 @dataclass
 class ObjectDetectionRuntimeParameters:
@@ -324,6 +360,8 @@ class MockSL:
     SpatialMappingParameters = SpatialMappingParameters
     ObjectDetectionParameters = ObjectDetectionParameters
     ObjectDetectionRuntimeParameters = ObjectDetectionRuntimeParameters
+    BatchParameters = BatchParameters
+    Resolution = Resolution
 
 # Export classes for tests
 __all__ = ['MockSL', 'Camera', 'Mat', 'Mesh', 'Objects', 'InitParameters', 'RuntimeParameters']
