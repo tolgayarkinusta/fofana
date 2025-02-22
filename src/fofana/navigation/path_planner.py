@@ -1,4 +1,13 @@
-"""Path planning and navigation control."""
+"""
+Yol planlama ve navigasyon kontrol modülü.
+
+Özellikler:
+- Şamandıralar arası güvenli geçiş planlama
+- Engel algılama ve kaçınma
+- Hedef noktaya gitme kontrolü
+- PWM tabanlı motor hız kontrolü
+- Oransal kontrol ile dönüş hesaplama
+"""
 import numpy as np
 from typing import Tuple, List, Optional
 from ..core.motor_control import MotorController

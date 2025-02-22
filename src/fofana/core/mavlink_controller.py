@@ -1,4 +1,13 @@
-"""Motor control module using MAVLink protocol."""
+"""
+MAVLink protokolü kullanan motor kontrol modülü.
+
+Bu modül, OrangeCube üzerinden motorların PWM kontrolünü sağlar:
+- İki motorun ileri/geri hareketi için PWM değerleri (1000-2000 arası)
+- Servo pin 5: Sol motor
+- Servo pin 6: Sağ motor
+- Arm/disarm güvenlik kontrolleri
+- MAVLink üzerinden haberleşme
+"""
 from pymavlink import mavutil
 from typing import Optional
 

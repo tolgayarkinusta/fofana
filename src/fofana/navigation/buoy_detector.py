@@ -1,4 +1,12 @@
-"""Buoy detection and tracking module."""
+"""
+Şamandıra tespit ve takip modülü.
+
+Özellikler:
+- Renkli şamandıraların tespiti (kırmızı, yeşil, sarı)
+- HSV renk uzayında filtreleme
+- Gürültü filtreleme ve boyut kontrolü
+- Şamandıra konumlarının piksel koordinatlarında tespiti
+"""
 import cv2
 import numpy as np
 from typing import List, Tuple, Optional
