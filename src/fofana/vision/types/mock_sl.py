@@ -274,6 +274,7 @@ class MockSL:
     Mat = Mat
     Mesh = Mesh
     Objects = Objects
+    Pose = Pose
     InitParameters = InitParameters
     RuntimeParameters = RuntimeParameters
     PositionalTrackingParameters = PositionalTrackingParameters

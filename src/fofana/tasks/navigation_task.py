@@ -14,17 +14,20 @@ from ..navigation.buoy_detector import BuoyDetector
 from ..navigation.path_planner import PathPlanner
 
 class NavigationTask:
-    def __init__(self, control_queue: mp.Queue):
+    def __init__(self, control_queue: mp.Queue, status_queue: mp.Queue, params: Optional[dict] = None):
         """Initialize navigation task.
         
         Args:
             control_queue: Queue for task control commands
+            status_queue: Queue for task status updates
+            params: Optional task parameters
         """
         self.control_queue = control_queue
+        self.status_queue = status_queue
         self.usv = USVController()
         self.camera = ZEDCamera()
-        self.buoy_detector = BuoyDetector()
-        self.path_planner = PathPlanner(self.usv)
+        self.buoy_detector = BuoyDetector(self.camera)
+        self.path_planner = PathPlanner(self.usv, self.camera)
         self.running = False
         
     def run(self) -> None:

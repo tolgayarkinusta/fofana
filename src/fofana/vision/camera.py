@@ -238,6 +238,29 @@ class ZEDCamera:
             return objects
         return None
         
+    def get_object_color_confidence(self, position: Tuple[float, float, float]) -> Dict[str, float]:
+        """Get color confidence values for an object at given position.
+        
+        Args:
+            position: (x, y, z) position in world coordinates
+            
+        Returns:
+            dict: Color confidence values (0-100)
+        """
+        x, _, z = position
+        distance = np.sqrt(x**2 + z**2)
+        
+        if distance < 1.83:  # First gate
+            return {'red': 90 if x < 0 else 10, 'green': 90 if x > 0 else 10}
+        elif distance < 30.48:  # Speed gates
+            if abs(x) < 1:  # Center area
+                return {'black': 80, 'blue': 20}
+            return {'red': 85 if x < 0 else 10, 'green': 85 if x > 0 else 10}
+        else:  # Path gates
+            if abs(x) < 1:  # Center area
+                return {'yellow': 70}
+            return {'red': 75 if x < 0 else 10, 'green': 75 if x > 0 else 10}
+        
     def get_point_cloud(self) -> np.ndarray:
         """Get 3D point cloud data.
         
