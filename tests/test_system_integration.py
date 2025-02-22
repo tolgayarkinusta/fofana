@@ -2,7 +2,11 @@
 import pytest
 import time
 import numpy as np
-from fofana.vision.camera import ZEDCamera
+import sys
+import os
+
+# Use mock camera for testing
+from fofana.vision.mock_camera import MockZEDCamera as ZEDCamera
 from fofana.navigation.buoy_detector import BuoyDetector
 from fofana.navigation.path_planner import PathPlanner
 from fofana.core.mavlink_controller import USVController
@@ -98,24 +102,60 @@ def test_buoy_specifications():
     camera.open()
     camera.enable_object_detection()
     
-    # Test navigation channel buoys (39in height, 18in diameter)
-    frame, _, _ = camera.get_frame()
+    # Get test frame
+    frame = np.zeros((1080, 1920, 3), dtype=np.uint8)  # Mock frame
     buoys = detector.detect_buoys(frame)
     
-    for buoy in buoys['red'] + buoys['green']:
+    # Test navigation gate buoys (Taylor Made Sur-Mark)
+    nav_buoys = [b for b in buoys['red'] + buoys['green'] 
+                 if b['type'] == 'navigation_gate']
+    assert len(nav_buoys) == 2, "Should detect 2 navigation gate buoys"
+    
+    for buoy in nav_buoys:
         height = buoy['dimensions'][1]  # Y up
         diameter = max(buoy['dimensions'][0], buoy['dimensions'][2])
+        distance = buoy['distance']
         
-        # Check dimensions (with 20% tolerance)
-        assert 0.8 * 0.9906 <= height <= 1.2 * 0.9906, f"Invalid height: {height}m"
-        assert 0.8 * 0.4572 <= diameter <= 1.2 * 0.4572, f"Invalid diameter: {diameter}m"
+        # Verify dimensions (20% tolerance)
+        assert 0.8 * 0.9906 <= height <= 1.2 * 0.9906, \
+            f"Invalid navigation buoy height: {height}m"
+        assert 0.8 * 0.4572 <= diameter <= 1.2 * 0.4572, \
+            f"Invalid navigation buoy diameter: {diameter}m"
+        assert distance < 1.83, \
+            f"Navigation buoy too far: {distance}m"
+            
+    # Test speed gate buoys (Polyform A-2)
+    speed_buoys = [b for b in buoys['red'] + buoys['green'] + buoys['black']
+                   if b['type'] == 'speed_gate']
+    assert len(speed_buoys) == 3, "Should detect 3 speed gate buoys"
     
-    # Test mapping buoys (0.5ft height, 20.3cm diameter)
-    for buoy in buoys['yellow']:
+    for buoy in speed_buoys:
         height = buoy['dimensions'][1]
         diameter = max(buoy['dimensions'][0], buoy['dimensions'][2])
+        distance = buoy['distance']
         
-        assert 0.8 * 0.1524 <= height <= 1.2 * 0.1524, f"Invalid height: {height}m"
-        assert 0.8 * 0.203 <= diameter <= 1.2 * 0.203, f"Invalid diameter: {diameter}m"
+        assert 0.8 * 0.3048 <= height <= 1.2 * 0.3048, \
+            f"Invalid speed buoy height: {height}m"
+        assert 0.8 * 0.254 <= diameter <= 1.2 * 0.254, \
+            f"Invalid speed buoy diameter: {diameter}m"
+        assert 1.83 <= distance <= 30.48, \
+            f"Speed buoy at wrong distance: {distance}m"
+            
+    # Test path gate buoys (Polyform A-0)
+    path_buoys = [b for b in buoys['red'] + buoys['green'] + buoys['yellow']
+                  if b['type'] == 'path_gate']
+    assert len(path_buoys) == 3, "Should detect 3 path gate buoys"
     
+    for buoy in path_buoys:
+        height = buoy['dimensions'][1]
+        diameter = max(buoy['dimensions'][0], buoy['dimensions'][2])
+        distance = buoy['distance']
+        
+        assert 0.8 * 0.1524 <= height <= 1.2 * 0.1524, \
+            f"Invalid path buoy height: {height}m"
+        assert 0.8 * 0.203 <= diameter <= 1.2 * 0.203, \
+            f"Invalid path buoy diameter: {diameter}m"
+        assert distance > 30.48, \
+            f"Path buoy too close: {distance}m"
+            
     camera.close()
