@@ -116,9 +116,9 @@ class ZEDCamera:
             return False
             
         # Verify tracking is actually running
-        tracking_state = self.zed.get_positional_tracking_state()
-        if tracking_state != sl.POSITIONAL_TRACKING_STATE.OK:
-            print(f"Pozisyon takibi hazır değil! Durum: {tracking_state}")
+        tracking_status = self.zed.get_positional_tracking_status()
+        if tracking_status != sl.POSITIONAL_TRACKING_STATE.OK:
+            print(f"Pozisyon takibi hazır değil! Durum: {tracking_status}")
             return False
             
         mapping_params = sl.SpatialMappingParameters()
