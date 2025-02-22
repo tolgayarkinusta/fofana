@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 import numpy as np
 
+# Export MockSL class for tests
+__all__ = ['MockSL', 'Camera', 'Mat', 'Mesh', 'Objects', 'InitParameters', 'RuntimeParameters']
+
 class ERROR_CODE:
     SUCCESS = 0
     FAILURE = 1

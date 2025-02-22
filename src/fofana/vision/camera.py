@@ -9,7 +9,10 @@ ZED2i kamera entegrasyon modülü (CUDA hızlandırma destekli).
 - Spatial mapping ile çevre haritalama
 - Gerçek zamanlı görüntü işleme için optimize edilmiş
 """
-import pyzed.sl as sl
+try:
+    import pyzed.sl as sl
+except ImportError:
+    from .types.mock_sl import MockSL as sl
 import numpy as np
 import torch
 from typing import Tuple, Optional, Dict, List
