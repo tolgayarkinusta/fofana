@@ -201,7 +201,7 @@ class Camera:
         self._object_detection_enabled = False
         self._frame = np.zeros((720, 1280, 3), dtype=np.uint8)
         self._depth = np.ones((720, 1280), dtype=np.float32) * 2.0
-        self._xyz = np.zeros((720, 1280, 3), dtype=np.float32)
+        self._xyz = np.zeros((720, 1280, 4), dtype=np.float32)  # XYZRGBA format
         self._pose = Pose()
         self._objects = Objects()
         
@@ -225,7 +225,10 @@ class Camera:
         if measure == MEASURE.DEPTH:
             mat.set_data(self._depth.copy())
         elif measure == MEASURE.XYZRGBA:
-            mat.set_data(self._xyz.copy())
+            data = self._xyz.copy()
+            # Add RGB values (white by default)
+            data[..., 3] = 255  # Alpha channel
+            mat.set_data(data)
             
     def enable_positional_tracking(self, params=None):
         self._tracking_enabled = True
