@@ -110,11 +110,6 @@ class ZEDCamera:
         mapping_params.map_type = sl.SPATIAL_MAP_TYPE.MESH  # Mesh for better water surface mapping
         mapping_params.reverse_vertex_order = False  # Keep default vertex order
         
-        # Configure mesh filtering for marine environment
-        mapping_params.enable_mesh_optimization = True  # Better noise filtering
-        mapping_params.mesh_filter_params.remove_duplicate_vertices = True  # Clean mesh
-        mapping_params.mesh_filter_params.min_vertex_dist_meters = 0.01  # 1cm minimum vertex distance
-        
         status = self.zed.enable_spatial_mapping(mapping_params)
         if status != sl.ERROR_CODE.SUCCESS:
             print(f"Spatial mapping başlatılamadı: {status}")
