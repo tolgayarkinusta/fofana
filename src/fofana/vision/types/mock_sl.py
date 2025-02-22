@@ -37,6 +37,18 @@ class REFERENCE_FRAME:
 
 class SPATIAL_MAP_TYPE:
     MESH = 0
+    FUSED_POINT_CLOUD = 1
+
+class MAPPING_RESOLUTION:
+    HIGH = 0    # Creates a detailed geometry, requires lots of memory
+    MEDIUM = 1  # Small variations in the geometry will disappear
+    LOW = 2     # Keeps only huge variations, useful for outdoor purposes
+
+class MAPPING_RANGE:
+    SHORT = 0   # Only depth close to the camera will be used
+    MEDIUM = 1  # Medium depth range
+    LONG = 2    # Takes into account objects that are far
+    AUTO = 3    # Depth range will be computed based on current camera state
 
 class DETECTION_MODEL:
     MULTI_CLASS_BOX_FAST = 0  # Default model for general purpose detection
@@ -149,23 +161,25 @@ class PositionalTrackingParameters:
     set_gravity_as_origin: bool = True
 
 @dataclass
-class MeshFilterParameters:
-    remove_duplicate_vertices: bool = True
-    min_vertex_dist_meters: float = 0.01
-
-@dataclass
 class SpatialMappingParameters:
-    resolution_meter: float = 0.1
-    range_meter: float = 20.0
-    use_chunk_only: bool = True
-    max_memory_usage: int = 2048
-    save_texture: bool = True
-    map_type: int = SPATIAL_MAP_TYPE.MESH
-    enable_mesh_optimization: bool = True
+    """Class containing a set of parameters for the spatial mapping module.
     
-    def __post_init__(self):
-        """Initialize mutable defaults."""
-        self.mesh_filter_params = MeshFilterParameters()
+    Attributes:
+        resolution_meter (float): Resolution in meters (0.01 to 0.2)
+        range_meter (float): Maximum depth mapping range in meters (1.0 to 40.0)
+        use_chunk_only (bool): Memory efficient mapping
+        max_memory_usage (int): Maximum memory in MB (default 2048)
+        save_texture (bool): Enable texture saving
+        map_type (int): Type of spatial map (MESH or FUSED_POINT_CLOUD)
+        reverse_vertex_order (bool): Vertex order for mesh
+    """
+    resolution_meter: float = 0.1  # Default for marine environment
+    range_meter: float = 20.0  # Default for marine environment
+    use_chunk_only: bool = True  # Memory efficient mapping
+    max_memory_usage: int = 2048  # 2GB memory limit
+    save_texture: bool = True  # Enable texture for visualization
+    map_type: int = SPATIAL_MAP_TYPE.MESH  # Use mesh mapping
+    reverse_vertex_order: bool = False  # Default vertex order
 
 @dataclass
 class BatchParameters:
@@ -343,6 +357,8 @@ class MockSL:
     SENSING_MODE = SENSING_MODE
     REFERENCE_FRAME = REFERENCE_FRAME
     SPATIAL_MAP_TYPE = SPATIAL_MAP_TYPE
+    MAPPING_RESOLUTION = MAPPING_RESOLUTION
+    MAPPING_RANGE = MAPPING_RANGE
     DETECTION_MODEL = DETECTION_MODEL
     OBJECT_FILTERING_MODE = OBJECT_FILTERING_MODE
     MEASURE = MEASURE

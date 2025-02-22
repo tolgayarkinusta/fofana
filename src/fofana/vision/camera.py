@@ -88,13 +88,11 @@ class ZEDCamera:
         self.tracking_enabled = True
         return True
         
-    def enable_spatial_mapping(self, resolution: float = 0.1, range: float = 20.0) -> bool:
-        """Enable spatial mapping for environment reconstruction.
+    def enable_spatial_mapping(self) -> bool:
+        """Enable spatial mapping for environment reconstruction optimized for marine environment.
         
-        Args:
-            resolution: Spatial mapping resolution in meters (0.01 to 0.2)
-            range: Maximum mapping range in meters (1.0 to 40.0)
-            
+        Uses LOW resolution preset for outdoor use and LONG range preset for marine environment.
+        
         Returns:
             bool: True if mapping enabled successfully
         """
@@ -102,18 +100,13 @@ class ZEDCamera:
             return False
             
         mapping_params = sl.SpatialMappingParameters()
-        mapping_params.resolution_meter = resolution  # Higher resolution for water surface detail
-        mapping_params.range_meter = range  # Extended range for marine environment
+        mapping_params.resolution_meter = sl.MAPPING_RESOLUTION.LOW  # Better for outdoor/marine
+        mapping_params.range_meter = sl.MAPPING_RANGE.LONG  # Extended range for marine environment
         mapping_params.use_chunk_only = True  # Memory efficient mapping
         mapping_params.max_memory_usage = 2048  # 2GB memory limit
         mapping_params.save_texture = True  # Enable texture for visualization
         mapping_params.map_type = sl.SPATIAL_MAP_TYPE.MESH  # Mesh for better water surface mapping
-        mapping_params.reverse_vertex_order = False  # Keep default vertex order
-        
-        # Configure mesh filtering for marine environment
-        mapping_params.enable_mesh_optimization = True  # Better noise filtering
-        mapping_params.mesh_filter_params.remove_duplicate_vertices = True  # Clean mesh
-        mapping_params.mesh_filter_params.min_vertex_dist_meters = 0.01  # 1cm minimum vertex distance
+        mapping_params.reverse_vertex_order = False  # Default vertex order
         
         status = self.zed.enable_spatial_mapping(mapping_params)
         if status != sl.ERROR_CODE.SUCCESS:
