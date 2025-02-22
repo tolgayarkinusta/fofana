@@ -284,6 +284,7 @@ class Camera:
         """Get depth confidence map."""
         return np.ones((720, 1280), dtype=np.uint8) * 100  # Full confidence
 
+
 class MockSL:
     """Mock ZED SDK for testing."""
     ERROR_CODE = ERROR_CODE

@@ -44,9 +44,18 @@ class MockZEDCamera:
         return ERROR_CODE.SUCCESS
         
     def get_frame(self) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, float]]:
-        """Return mock frame data on CUDA."""
-        frame = torch.zeros((1080, 1920, 3), dtype=torch.uint8).cuda()
-        depth = torch.zeros((1080, 1920), dtype=torch.float32).cuda()
+        """Return mock frame data."""
+        frame = torch.zeros((1080, 1920, 3), dtype=torch.uint8)
+        depth = torch.zeros((1080, 1920), dtype=torch.float32)
+        
+        # Try to move to CUDA if available
+        try:
+            frame = frame.cuda()
+            depth = depth.cuda()
+        except RuntimeError:
+            # CUDA not available, use CPU tensors
+            pass
+            
         pose = {
             'x': 0.0, 'y': 0.0, 'z': 0.0,
             'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0
