@@ -62,19 +62,27 @@ class USVController:
         """
         # Left motor on pin 5, right motor on pin 6
         servo_pin = 5 if motor.lower() == 'left' else 6
+        self.set_servo(servo_pin, pwm_value)
         
+        if debug:
+            self.print_motor_outputs()
+            
+    def set_servo(self, pin: int, pwm_value: int) -> None:
+        """Set servo PWM value.
+        
+        Args:
+            pin: Servo pin number (5-8)
+            pwm_value: PWM value (1000-2000)
+        """
         self.master.mav.command_long_send(
             self.master.target_system,
             self.master.target_component,
             mavutil.mavlink.MAV_CMD_DO_SET_SERVO,
             0,
-            servo_pin,
+            pin,
             pwm_value,
             0, 0, 0, 0, 0
         )
-        
-        if debug:
-            self.print_motor_outputs()
             
     def stop_motors(self) -> None:
         """Stop both motors by setting neutral PWM."""
