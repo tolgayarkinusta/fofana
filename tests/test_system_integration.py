@@ -18,7 +18,7 @@ from fofana.tasks.task_manager import TaskManager
 def test_system_initialization():
     """Test complete system initialization."""
     # Initialize camera
-    camera = ZEDCamera()
+    camera = MockZEDCamera()
     assert camera.open(), "Failed to open camera"
     assert camera.enable_positional_tracking(), "Failed to enable tracking"
     assert camera.enable_spatial_mapping(), "Failed to enable mapping"
@@ -128,7 +128,7 @@ def test_obstacle_avoidance():
 
 def test_buoy_specifications():
     """Test buoy detection with competition specifications."""
-    camera = ZEDCamera()
+    camera = MockZEDCamera()
     detector = BuoyDetector(camera)
     
     camera.open()
