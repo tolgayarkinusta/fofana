@@ -4,11 +4,19 @@ Yol planlama ve navigasyon kontrol modülü.
 Özellikler:
 - 3B ortam haritalama ve engel algılama
 - A* algoritması ile yol planlama
-- Şamandıralar arası güvenli geçiş planlama
+- Şamandıralar arası güvenli geçiş planlama:
+  * İlk iki geçit arası: 25-100 feet (7.62-30.48m)
+  * Tüm geçitler: 6-10 feet genişlik (1.83-3.05m)
 - Costmap tabanlı engel kaçınma
 - PWM tabanlı motor hız kontrolü
 - Oransal kontrol ile dönüş hesaplama
 """
+# Şamandıra geçit sabitleri
+GATE_WIDTH_MIN = 1.83        # 6 feet (metre cinsinden)
+GATE_WIDTH_MAX = 3.05        # 10 feet (metre cinsinden)
+FIRST_GATE_SPACING_MIN = 7.62   # 25 feet (metre cinsinden)
+FIRST_GATE_SPACING_MAX = 30.48  # 100 feet (metre cinsinden)
+
 import numpy as np
 from typing import Tuple, List, Optional, Dict
 from ..core.motor_control import MotorController
@@ -27,11 +35,17 @@ class PathPlanner:
         self.camera = camera
         self.target_position = None
         self.min_distance = 1.0  # Minimum distance to maintain from buoys
+        self.gates_passed = 0    # Geçilen geçit sayısı
+        self.last_gate_center = None  # Son geçilen geçitin merkezi
         
         # Costmap parameters
         self.resolution = 0.1  # 10cm per cell
         self.map_size = int(20.0 / self.resolution)  # 20m x 20m area
         self.costmap = None
+        
+        # Obstacle detection
+        from ..navigation.buoy_detector import BuoyDetector
+        self.buoy_detector = BuoyDetector(camera)
         
     def set_target(self, x: float, y: float) -> None:
         """Set target position to navigate to.
@@ -43,30 +57,38 @@ class PathPlanner:
         self.target_position = (x, y)
         
     def update_costmap(self) -> None:
-        """Update costmap using ZED spatial mapping."""
-        if not self.camera.mapping_enabled:
+        """Update costmap with detected obstacles."""
+        # Get obstacles from detector
+        frame = self.camera.get_frame()[0]  # Get RGB frame
+        if frame is None:
             return
             
-        spatial_map = self.camera.get_spatial_map()
-        if spatial_map is None:
-            return
-            
+        obstacles = self.buoy_detector.detect_obstacles(frame)
+        
         # Create empty costmap
         self.costmap = np.zeros((self.map_size, self.map_size))
         
-        # Convert spatial map vertices to costmap
-        for vertex in spatial_map.vertices:
-            x = int((vertex[0] + 10.0) / self.resolution)  # Offset by 10m to center map
-            y = int((vertex[2] + 10.0) / self.resolution)  # Use Z as Y in top-down view
-            
+        # Add yellow buoys with larger padding (endangered species)
+        for buoy in obstacles['yellow_buoys']:
+            x, y = self._world_to_costmap(buoy['position'])
             if 0 <= x < self.map_size and 0 <= y < self.map_size:
-                # Add cost based on height (obstacles)
-                self.costmap[y, x] = 1.0
+                radius = int(1.0 / self.resolution)  # 1m safety radius
+                self._add_circular_cost(x, y, radius, 0.8)
+        
+        # Add vessels with variable padding
+        for vessel in obstacles['stationary_vessels']:
+            x, y = self._world_to_costmap(vessel['position'])
+            if 0 <= x < self.map_size and 0 <= y < self.map_size:
+                dims = vessel['dimensions']
+                radius = int(max(dims) / self.resolution) + 5  # 50cm extra
+                self._add_circular_cost(x, y, radius, 1.0)
                 
-        # Add padding around obstacles
-        kernel = np.ones((5, 5))  # 50cm padding
-        self.costmap = np.minimum(1.0, np.maximum(0.0, 
-            self.costmap + 0.5 * np.array(self.costmap > 0.5, dtype=float)))
+        # Add other obstacles with standard padding
+        for obstacle in obstacles['other']:
+            x, y = self._world_to_costmap(obstacle['position'])
+            if 0 <= x < self.map_size and 0 <= y < self.map_size:
+                radius = int(0.5 / self.resolution)  # 50cm padding
+                self._add_circular_cost(x, y, radius, 0.5)
             
     def navigate_through_gates(self, red_buoys: List[Dict], green_buoys: List[Dict]) -> None:
         """Navigate through red-green buoy gates using spatial mapping.
@@ -170,23 +192,84 @@ class PathPlanner:
                 gate_width = np.sqrt((red_pos[0] - green_pos[0])**2 + 
                                    (red_pos[2] - green_pos[2])**2)
                 
-                # Check if gate width is reasonable (1.8-2.4m)
-                if 1.8 <= gate_width <= 2.4:
-                    # Calculate distance to gate center
-                    gate_center = (
-                        (red_pos[0] + green_pos[0]) / 2,
-                        (red_pos[1] + green_pos[1]) / 2,
-                        (red_pos[2] + green_pos[2]) / 2
+                # Geçit genişliğini kontrol et (6-10 feet / 1.83-3.05m)
+                if not (GATE_WIDTH_MIN <= gate_width <= GATE_WIDTH_MAX):
+                    continue
+                    
+                # Geçit merkezi hesapla
+                gate_center = (
+                    (red_pos[0] + green_pos[0]) / 2,
+                    (red_pos[1] + green_pos[1]) / 2,
+                    (red_pos[2] + green_pos[2]) / 2
+                )
+                
+                # İlk iki geçit arası mesafe kontrolü (25-100 feet)
+                if self.gates_passed == 1 and self.last_gate_center:
+                    gate_spacing = np.sqrt(
+                        (gate_center[0] - self.last_gate_center[0])**2 +
+                        (gate_center[2] - self.last_gate_center[2])**2
                     )
+                    if not (FIRST_GATE_SPACING_MIN <= gate_spacing <= 
+                           FIRST_GATE_SPACING_MAX):
+                        continue
+                
+                # En yakın geçidi seç
+                distance = np.sqrt((gate_center[0] - current_pos['x'])**2 +
+                                 (gate_center[2] - current_pos['z'])**2)
+                
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_gate = (red, green)
                     
-                    distance = np.sqrt((gate_center[0] - current_pos['x'])**2 +
-                                     (gate_center[2] - current_pos['z'])**2)
-                    
-                    if distance < min_distance:
-                        min_distance = distance
-                        closest_gate = (red, green)
+                    # Geçit geçildiğinde güncelle
+                    if distance < 2.0:  # 2m yakınlığa gelince geçilmiş say
+                        self.gates_passed += 1
+                        self.last_gate_center = gate_center
+                        # Geçit geçildiğinde sayacı artır
+                        if distance < 2.0:  # 2m yakınlığa gelince geçilmiş say
+                            self.gates_passed += 1
                         
         return closest_gate
+        
+    def _world_to_costmap(self, position: Tuple[float, float, float]) -> Tuple[int, int]:
+        """Convert world coordinates to costmap coordinates.
+        
+        Args:
+            position: (x, y, z) world coordinates in meters
+            
+        Returns:
+            Tuple[int, int]: (x, y) costmap coordinates
+        """
+        x = int((position[0] + 10.0) / self.resolution)  # Offset by 10m to center map
+        y = int((position[2] + 10.0) / self.resolution)  # Use Z as Y in top-down view
+        return x, y
+        
+    def _add_circular_cost(self, x: int, y: int, radius: int, cost: float) -> None:
+        """Add circular cost region to costmap.
+        
+        Args:
+            x: Center X coordinate in costmap
+            y: Center Y coordinate in costmap
+            radius: Radius in costmap cells
+            cost: Cost value to add (0.0-1.0)
+        """
+        y_indices, x_indices = np.ogrid[-radius:radius+1, -radius:radius+1]
+        mask = x_indices**2 + y_indices**2 <= radius**2
+        
+        x_start = max(0, x - radius)
+        x_end = min(self.map_size, x + radius + 1)
+        y_start = max(0, y - radius)
+        y_end = min(self.map_size, y + radius + 1)
+        
+        mask_start_y = max(0, radius - y)
+        mask_end_y = mask_start_y + (y_end - y_start)
+        mask_start_x = max(0, radius - x)
+        mask_end_x = mask_start_x + (x_end - x_start)
+        
+        self.costmap[y_start:y_end, x_start:x_end] = np.maximum(
+            self.costmap[y_start:y_end, x_start:x_end],
+            cost * mask[mask_start_y:mask_end_y, mask_start_x:mask_end_x]
+        )
         
     def _astar_search(self, start: Tuple[int, int], goal: Tuple[int, int]) -> List[Tuple[int, int]]:
         """A* path planning algorithm.
