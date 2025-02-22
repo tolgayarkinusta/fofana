@@ -162,7 +162,32 @@ class ObjectDetectionRuntimeParameters:
 @dataclass
 class Objects:
     def __init__(self):
-        self.object_list = []
+        """Initialize with mock buoy data."""
+        self.object_list = [
+            # Navigation gate buoys (Taylor Made Sur-Mark)
+            type('Object', (), {
+                'position': (-2, 1, 5),
+                'dimensions': (0.4572, 0.9906, 0.4572),
+                'confidence': 90,
+                'tracking_state': True,
+                'label': 'red_buoy'
+            }),
+            type('Object', (), {
+                'position': (2, 1, 5),
+                'dimensions': (0.4572, 0.9906, 0.4572),
+                'confidence': 90,
+                'tracking_state': True,
+                'label': 'green_buoy'
+            }),
+            # Yellow buoy (endangered species)
+            type('Object', (), {
+                'position': (0, 0.15, 40),
+                'dimensions': (0.203, 0.1524, 0.203),
+                'confidence': 90,
+                'tracking_state': True,
+                'label': 'yellow_buoy'
+            })
+        ]
         self.timestamp = 0
         self.is_tracked = True
         self.is_new = False

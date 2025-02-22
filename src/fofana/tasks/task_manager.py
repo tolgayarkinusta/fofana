@@ -113,16 +113,14 @@ class TaskManager:
         
         return True
         
-    def stop_task(self, task_name: str) -> None:
-        """Stop a running task safely.
-        
-        Args:
-            task_name: Name of the task to stop
-        """
-        if task_name not in self.active_processes:
+    def stop_task(self) -> None:
+        """Stop the current task safely."""
+        # Get first active task
+        active_tasks = list(self.active_processes.items())
+        if not active_tasks:
             return
             
-        process_info = self.active_processes[task_name]
+        task_name, process_info = active_tasks[0]
         
         # Send stop command to task
         process_info['control_queue'].put('stop')
