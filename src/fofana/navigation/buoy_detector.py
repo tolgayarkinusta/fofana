@@ -12,9 +12,10 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 import os
 
-# Only import pyzed if not using mock
-if not os.getenv('MOCK_ZED'):
+try:
     import pyzed.sl as sl
+except ImportError:
+    from ..vision.types.mock_sl import MockSL as sl
 
 class BuoyDetector:
     def __init__(self, camera):
