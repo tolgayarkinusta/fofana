@@ -21,32 +21,33 @@ class MockZEDCamera:
         self.runtime_params = RuntimeParameters()
         self.camera = Camera()
         
-    def open(self, init_params: Optional[InitParameters] = None) -> ERROR_CODE:
+    def open(self, init_params: Optional[InitParameters] = None) -> bool:
         """Open camera with optional initialization parameters."""
-        self.is_open = True
         if init_params:
             self.init_params = init_params
-        return ERROR_CODE.SUCCESS
+        self.is_open = True
+        self.camera.open(self.init_params)
+        return True
         
-    def enable_positional_tracking(self, params: Optional[PositionalTrackingParameters] = None) -> ERROR_CODE:
+    def enable_positional_tracking(self, params: Optional[PositionalTrackingParameters] = None) -> bool:
         """Enable positional tracking with optional parameters."""
         self.tracking_enabled = True
-        return ERROR_CODE.SUCCESS
+        return True
         
-    def enable_spatial_mapping(self, params: Optional[SpatialMappingParameters] = None) -> ERROR_CODE:
+    def enable_spatial_mapping(self, params: Optional[SpatialMappingParameters] = None) -> bool:
         """Enable spatial mapping with optional parameters."""
         self.mapping_enabled = True
-        return ERROR_CODE.SUCCESS
+        return True
         
-    def enable_object_detection(self, params: Optional[ObjectDetectionParameters] = None) -> ERROR_CODE:
+    def enable_object_detection(self, params: Optional[ObjectDetectionParameters] = None) -> bool:
         """Enable object detection with optional parameters."""
         self.detection_enabled = True
-        return ERROR_CODE.SUCCESS
+        return True
         
     def get_frame(self) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, float]]:
         """Return mock frame data."""
-        frame = torch.zeros((1080, 1920, 3), dtype=torch.uint8)
-        depth = torch.zeros((1080, 1920), dtype=torch.float32)
+        frame = torch.zeros((720, 1280, 3), dtype=torch.uint8)
+        depth = torch.zeros((720, 1280), dtype=torch.float32)
         
         # Try to move to CUDA if available
         try:
@@ -71,38 +72,100 @@ class MockZEDCamera:
         objects.object_list = [
             # Navigation gate buoys (Taylor Made Sur-Mark)
             type('Object', (), {
-                'position': (-2, 1, 5),
+                'position': (-0.91, 1, 1.5),  # Within 6ft
                 'dimensions': (0.4572, 0.9906, 0.4572),
                 'confidence': 90,
-                'tracking_state': True
+                'tracking_state': True,
+                'type': 'navigation_gate',
+                'distance': 1.5,
+                'label': 'red_buoy'
             }),
             type('Object', (), {
-                'position': (2, 1, 5),
+                'position': (0.91, 1, 1.5),  # Within 6ft
                 'dimensions': (0.4572, 0.9906, 0.4572),
                 'confidence': 90,
-                'tracking_state': True
+                'tracking_state': True,
+                'type': 'navigation_gate',
+                'distance': 1.5,
+                'label': 'green_buoy'
             }),
             
             # Speed gate buoys (Polyform A-2)
             type('Object', (), {
-                'position': (-4, 0.3, 20),
+                'position': (-2, 0.3, 15),  # Between 6ft and 100ft
                 'dimensions': (0.254, 0.3048, 0.254),
                 'confidence': 85,
-                'tracking_state': True
+                'tracking_state': True,
+                'type': 'speed_gate',
+                'distance': 15.0,
+                'label': 'red_buoy'
             }),
             type('Object', (), {
-                'position': (4, 0.3, 20),
+                'position': (2, 0.3, 15),
                 'dimensions': (0.254, 0.3048, 0.254),
                 'confidence': 85,
-                'tracking_state': True
+                'tracking_state': True,
+                'type': 'speed_gate',
+                'distance': 15.0,
+                'label': 'green_buoy'
+            }),
+            type('Object', (), {
+                'position': (0, 0.3, 15),
+                'dimensions': (0.254, 0.3048, 0.254),
+                'confidence': 85,
+                'tracking_state': True,
+                'type': 'speed_gate',
+                'distance': 15.0,
+                'label': 'black_buoy'
             }),
             
-            # Yellow buoy (endangered species)
+            # Path gate buoys (Polyform A-0)
             type('Object', (), {
-                'position': (0, 0.15, 40),
+                'position': (-3, 0.15, 35),  # Beyond 100ft
                 'dimensions': (0.203, 0.1524, 0.203),
-                'confidence': 90,
-                'tracking_state': True
+                'confidence': 75,
+                'tracking_state': True,
+                'type': 'path_gate',
+                'distance': 35.0,
+                'label': 'red_buoy'
+            }),
+            type('Object', (), {
+                'position': (3, 0.15, 35),
+                'dimensions': (0.203, 0.1524, 0.203),
+                'confidence': 75,
+                'tracking_state': True,
+                'type': 'path_gate',
+                'distance': 35.0,
+                'label': 'green_buoy'
+            }),
+            type('Object', (), {
+                'position': (0, 0.15, 35),
+                'dimensions': (0.203, 0.1524, 0.203),
+                'confidence': 70,
+                'tracking_state': True,
+                'type': 'path_gate',
+                'distance': 35.0,
+                'label': 'yellow_buoy'
+            }),
+            
+            # Yellow obstacle buoys (Polyform A-0)
+            type('Object', (), {
+                'position': (-1, 0.15, 25),
+                'dimensions': (0.203, 0.1524, 0.203),
+                'confidence': 75,
+                'tracking_state': True,
+                'type': 'path_gate',
+                'distance': 25.0,
+                'label': 'yellow_buoy'
+            }),
+            type('Object', (), {
+                'position': (1, 0.15, 25),
+                'dimensions': (0.203, 0.1524, 0.203),
+                'confidence': 75,
+                'tracking_state': True,
+                'type': 'path_gate',
+                'distance': 25.0,
+                'label': 'yellow_buoy'
             }),
             
             # Stationary vessel
@@ -110,7 +173,8 @@ class MockZEDCamera:
                 'position': (2, 0.5, 35),
                 'dimensions': (1.0, 0.8, 2.0),
                 'confidence': 85,
-                'tracking_state': True
+                'tracking_state': True,
+                'type': 'vessel'
             })
         ]
         return objects
