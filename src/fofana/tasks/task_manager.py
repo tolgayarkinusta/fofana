@@ -1,4 +1,20 @@
-"""Task management module for RoboBoat competition tasks."""
+"""
+RoboBoat yarışması görev yönetim modülü.
+
+Bu modül şu görevleri yönetir:
+1. Navigasyon Kanalı: Kırmızı-yeşil şamandıralar arası geçiş
+2. Göç Yolları: Sarı şamandıraları tespit ve sayma
+3. Tehlikeli Sular: Doğru yanaşma yerine otonom yanaşma
+4. Kirlilikle Yarış: Hızlı parkur tamamlama
+5. Kurtarma Teslimatları: Su püskürtme ve top atma
+6. Eve Dönüş: Başlangıç noktasına dönüş
+
+Her görev için:
+- Güvenli başlatma/durdurma
+- Durum takibi
+- Hata yönetimi
+- Sensör ve motor kontrolü
+"""
 from enum import Enum
 from typing import Optional, Dict, Any
 from ..core.mavlink_controller import USVController
