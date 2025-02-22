@@ -252,11 +252,11 @@ class Objects:
 
 class POSITIONAL_TRACKING_STATE:
     """Mock ZED SDK positional tracking states."""
-    OFF = 0
-    OK = 1
-    SEARCHING = 2
-    FPS_TOO_LOW = 3
-    SEARCHING_FLOOR_PLANE = 4
+    OFF = "OFF"  # Tracking is disabled
+    OK = "OK"  # Tracking is working normally
+    FPS_TOO_LOW = "FPS_TOO_LOW"  # FPS too low for accurate tracking
+    SEARCHING_FLOOR_PLANE = "SEARCHING_FLOOR_PLANE"  # Looking for floor plane
+    UNAVAILABLE = "UNAVAILABLE"  # Tracking unavailable
 
 class Camera:
     """Mock ZED camera."""
