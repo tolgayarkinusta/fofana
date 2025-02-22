@@ -1,6 +1,15 @@
 """RoboBoat 2025 donanım entegrasyon testleri."""
 import pytest
 import time
+import sys
+import os
+from unittest.mock import patch, MagicMock
+
+# Add mock ZED SDK to path
+sys.path.insert(0, os.path.dirname(__file__))
+import mock_zed_sdk
+sys.modules['pyzed.sl'] = mock_zed_sdk
+
 from fofana.main import RoboBoat2025Runner
 from fofana.core.mavlink_controller import USVController
 from fofana.vision.camera import ZEDCamera
