@@ -93,13 +93,13 @@ class ZEDCamera:
         time.sleep(0.5)
         
         # Verify tracking state
-        tracking_state = self.zed.get_positional_tracking_state()
-        if tracking_state == sl.POSITIONAL_TRACKING_STATE.OFF:
+        tracking_status = self.zed.get_positional_tracking_status()
+        if tracking_status == sl.POSITIONAL_TRACKING_STATE.OFF:
             print("Pozisyon takibi etkin değil! Önce pozisyon takibini etkinleştirin.")
             self.zed.disable_positional_tracking()
             return False
-        elif tracking_state != sl.POSITIONAL_TRACKING_STATE.OK:
-            print(f"Pozisyon takibi başlatılamadı! Durum: {tracking_state}")
+        elif tracking_status != sl.POSITIONAL_TRACKING_STATE.OK:
+            print(f"Pozisyon takibi başlatılamadı! Durum: {tracking_status}")
             self.zed.disable_positional_tracking()
             return False
             
