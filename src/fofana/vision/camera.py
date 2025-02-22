@@ -107,6 +107,7 @@ class ZEDCamera:
         mapping_params.save_texture = True  # Enable texture for visualization
         mapping_params.map_type = sl.SPATIAL_MAP_TYPE.MESH  # Mesh for better water surface mapping
         mapping_params.reverse_vertex_order = False  # Default vertex order
+        mapping_params.reverse_vertex_order = False  # Default vertex order
         
         status = self.zed.enable_spatial_mapping(mapping_params)
         if status != sl.ERROR_CODE.SUCCESS:
