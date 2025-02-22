@@ -92,8 +92,8 @@ class ZEDCamera:
         """Enable spatial mapping for environment reconstruction.
         
         Args:
-            resolution: Spatial mapping resolution in meters
-            range: Maximum mapping range in meters
+            resolution: Spatial mapping resolution in meters (0.01 to 0.2)
+            range: Maximum mapping range in meters (1.0 to 40.0)
             
         Returns:
             bool: True if mapping enabled successfully
@@ -102,15 +102,15 @@ class ZEDCamera:
             return False
             
         mapping_params = sl.SpatialMappingParameters()
-        mapping_params.resolution_meter = resolution
-        mapping_params.range_meter = range
-        mapping_params.use_chunk_only = True
+        mapping_params.resolution_meter = resolution  # Higher resolution for water surface detail
+        mapping_params.range_meter = range  # Extended range for marine environment
+        mapping_params.use_chunk_only = True  # Memory efficient mapping
         mapping_params.max_memory_usage = 2048  # 2GB memory limit
-        mapping_params.save_texture = True  # Enable texture saving for visualization
-        mapping_params.map_type = sl.SPATIAL_MAP_TYPE.MESH  # Use mesh for better accuracy
+        mapping_params.save_texture = True  # Enable texture for visualization
+        mapping_params.map_type = sl.SPATIAL_MAP_TYPE.MESH  # Mesh for better water surface mapping
+        mapping_params.reverse_vertex_order = False  # Keep default vertex order
         
-        # Configure for marine environment
-        mapping_params.set_gravity_as_origin = True  # Use gravity for stable water surface reference
+        # Configure mesh filtering for marine environment
         mapping_params.enable_mesh_optimization = True  # Better noise filtering
         mapping_params.mesh_filter_params.remove_duplicate_vertices = True  # Clean mesh
         mapping_params.mesh_filter_params.min_vertex_dist_meters = 0.01  # 1cm minimum vertex distance

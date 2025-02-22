@@ -161,7 +161,6 @@ class SpatialMappingParameters:
     max_memory_usage: int = 2048
     save_texture: bool = True
     map_type: int = SPATIAL_MAP_TYPE.MESH
-    set_gravity_as_origin: bool = True
     enable_mesh_optimization: bool = True
     
     def __post_init__(self):
