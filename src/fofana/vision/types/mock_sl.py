@@ -3,7 +3,32 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 import numpy as np
 
-# Export MockSL class for tests
+class MockSL:
+    """Mock ZED SDK for testing."""
+    ERROR_CODE = ERROR_CODE
+    RESOLUTION = RESOLUTION
+    DEPTH_MODE = DEPTH_MODE
+    UNIT = UNIT
+    COORDINATE_SYSTEM = COORDINATE_SYSTEM
+    SENSING_MODE = SENSING_MODE
+    REFERENCE_FRAME = REFERENCE_FRAME
+    SPATIAL_MAP_TYPE = SPATIAL_MAP_TYPE
+    DETECTION_MODEL = DETECTION_MODEL
+    MEASURE = MEASURE
+    VIEW = VIEW
+    
+    Camera = Camera
+    Mat = Mat
+    Mesh = Mesh
+    Objects = Objects
+    InitParameters = InitParameters
+    RuntimeParameters = RuntimeParameters
+    PositionalTrackingParameters = PositionalTrackingParameters
+    SpatialMappingParameters = SpatialMappingParameters
+    ObjectDetectionParameters = ObjectDetectionParameters
+    ObjectDetectionRuntimeParameters = ObjectDetectionRuntimeParameters
+
+# Export classes for tests
 __all__ = ['MockSL', 'Camera', 'Mat', 'Mesh', 'Objects', 'InitParameters', 'RuntimeParameters']
 
 class ERROR_CODE:
