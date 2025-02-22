@@ -180,8 +180,15 @@ class ZEDCamera:
             self.zed.retrieve_measure(depth, sl.MEASURE.DEPTH)
             
             # Convert to CUDA tensors
-            frame_gpu = torch.from_numpy(image.get_data()).cuda()
-            depth_gpu = torch.from_numpy(depth.get_data()).cuda()
+            # Try to move tensors to CUDA if available
+            frame_gpu = torch.from_numpy(image.get_data())
+            depth_gpu = torch.from_numpy(depth.get_data())
+            try:
+                frame_gpu = frame_gpu.cuda()
+                depth_gpu = depth_gpu.cuda()
+            except RuntimeError:
+                # CUDA not available, use CPU tensors
+                pass
             
             # Get pose if tracking enabled
             pose_data = self.get_position() if self.tracking_enabled else None

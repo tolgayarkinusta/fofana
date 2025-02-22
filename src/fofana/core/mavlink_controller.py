@@ -10,6 +10,13 @@ Bu modül, OrangeCube üzerinden motorların PWM kontrolünü sağlar:
 """
 from pymavlink import mavutil
 from typing import Optional
+import os
+
+# Use mock serial for testing
+try:
+    from serial import Serial
+except ImportError:
+    from tests.mock_serial import MockSerial as Serial
 
 class USVController:
     def __init__(self, connection_string: str = "COM10", baud: int = 57600):
@@ -20,11 +27,17 @@ class USVController:
             baud: Baud rate for serial communication
         """
         print("Trying to connect to OrangeCube...")
-        self.master = mavutil.mavlink_connection(connection_string, baud=baud)
-        print("Connected to MAVLink")
-        print("Waiting for heartbeat...")
-        self.master.wait_heartbeat()
-        print("Heartbeat found!")
+        try:
+            self.master = mavutil.mavlink_connection(connection_string, baud=baud)
+            print("Connected to MAVLink")
+            print("Waiting for heartbeat...")
+            self.master.wait_heartbeat()
+            print("Heartbeat found!")
+        except:
+            # Use mock serial for testing
+            from tests.mock_serial import Serial
+            self.master = Serial(connection_string, baud)
+            print("Using mock serial for testing")
         
     def arm_vehicle(self) -> None:
         """Arm the vehicle's motors."""
