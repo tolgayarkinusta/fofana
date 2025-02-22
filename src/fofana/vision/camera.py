@@ -296,3 +296,13 @@ class ZEDCamera:
             self.zed.retrieve_measure(depth, sl.MEASURE.DEPTH)
             return depth.get_data()
         return None
+        
+    def get_confidence_map(self) -> Optional[np.ndarray]:
+        """Get depth confidence map.
+        
+        Returns:
+            Optional[np.ndarray]: Confidence values (0-100)
+        """
+        if not self.zed.is_opened():
+            return None
+        return self.zed.get_confidence_map()
