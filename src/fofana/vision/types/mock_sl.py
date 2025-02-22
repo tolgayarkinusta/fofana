@@ -257,6 +257,32 @@ class Camera:
         
     def close(self):
         self._is_opened = False
+        
+    def disable_spatial_mapping(self):
+        """Disable spatial mapping."""
+        self._mapping_enabled = False
+        return ERROR_CODE.SUCCESS
+        
+    def disable_object_detection(self):
+        """Disable object detection."""
+        self._object_detection_enabled = False
+        return ERROR_CODE.SUCCESS
+        
+    def disable_positional_tracking(self):
+        """Disable positional tracking."""
+        self._tracking_enabled = False
+        return ERROR_CODE.SUCCESS
+        
+    def extract_whole_spatial_map(self, mesh):
+        """Extract spatial map data."""
+        mesh.vertices = self._pose._translation
+        mesh.triangles = [0, 1, 2]
+        mesh.normals = [(0, 0, 1)] * 3
+        return ERROR_CODE.SUCCESS
+        
+    def get_confidence_map(self):
+        """Get depth confidence map."""
+        return np.ones((720, 1280), dtype=np.uint8) * 100  # Full confidence
 
 class MockSL:
     """Mock ZED SDK for testing."""

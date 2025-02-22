@@ -119,6 +119,9 @@ class BuoyDetector:
         if distance < 1.83:  # 6ft içinde
             return 'navigation_gate'
         elif distance < 30.48:  # 100ft içinde
+            # Check if it's a navigation gate buoy
+            if abs(position[0]) > 0.91:  # 3ft from center
+                return 'navigation_gate'
             return 'speed_gate'
         else:
             return 'path_gate'
