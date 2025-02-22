@@ -109,7 +109,7 @@ class Mesh:
 @dataclass
 class InitParameters:
     camera_resolution: int = RESOLUTION.HD720
-    depth_mode: int = DEPTH_MODE.STANDARD
+    depth_mode: int = DEPTH_MODE.QUALITY
     coordinate_units: int = UNIT.METER
     sdk_cuda_ctx: bool = True
     coordinate_system: int = COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
@@ -174,22 +174,27 @@ class Objects:
                 'dimensions': (0.4572, 0.9906, 0.4572),
                 'confidence': 90,
                 'tracking_state': True,
-                'label': 'red_buoy'
+                'label': 'red_buoy',
+                'type': 'navigation_gate',
+                'distance': 5.0
             }),
             type('Object', (), {
                 'position': (2, 1, 5),
                 'dimensions': (0.4572, 0.9906, 0.4572),
                 'confidence': 90,
                 'tracking_state': True,
-                'label': 'green_buoy'
+                'label': 'green_buoy',
+                'type': 'navigation_gate',
+                'distance': 5.0
             }),
             # Yellow buoy (endangered species)
             type('Object', (), {
-                'position': (0, 0.15, 40),
+                'position': (0, 0.15, 10),  # Closer for better detection
                 'dimensions': (0.203, 0.1524, 0.203),
                 'confidence': 90,
                 'tracking_state': True,
-                'label': 'yellow_buoy'
+                'label': 'yellow_buoy',
+                'type': 'yellow_buoy'
             })
         ]
         self.timestamp = 0
@@ -210,7 +215,11 @@ class Camera:
         self._objects = Objects()
         
     def open(self, init_params):
+        """Open camera with initialization parameters."""
         self._is_opened = True
+        self._frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+        self._depth = np.ones((720, 1280), dtype=np.float32) * 2.0
+        self._xyz = np.zeros((720, 1280, 4), dtype=np.float32)
         return ERROR_CODE.SUCCESS
         
     def is_opened(self):
