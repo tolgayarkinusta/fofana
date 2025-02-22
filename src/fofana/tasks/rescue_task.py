@@ -101,28 +101,38 @@ class RescueTask:
         return []
         
     def _spray_water(self, target: Dict) -> bool:
-        """Spray water at orange target.
+        """Su püskürtme mekanizmasını kontrol et.
         
         Args:
-            target: Target information
+            target: Hedef bilgisi
             
         Returns:
             bool: True if water spray successful
         """
-        # TODO: Implement water spray control
-        time.sleep(3)  # Simulate 3-second spray
+        # Pin 7'ye 2000 PWM göndererek su püskürtmeyi başlat
+        self.usv.set_servo(7, 2000)
+        time.sleep(3)  # 3 saniye su püskürt
+        
+        # Pin 7'ye 1000 PWM göndererek su püskürtmeyi durdur
+        self.usv.set_servo(7, 1000)
         return True
         
     def _throw_ball(self, target: Dict) -> bool:
-        """Throw ball at black target.
+        """Top fırlatma mekanizmasını kontrol et.
         
         Args:
-            target: Target information
+            target: Hedef bilgisi
             
         Returns:
             bool: True if ball throw successful
         """
-        # TODO: Implement ball throwing mechanism
+        # Pin 8'e 2000 PWM göndererek top fırlat
+        self.usv.set_servo(8, 2000)
+        time.sleep(0.5)  # Mekanizmanın hareket etmesi için bekle
+        
+        # Pin 8'i 1000 PWM'e döndürerek mekanizmayı sıfırla
+        self.usv.set_servo(8, 1000)
+        time.sleep(0.5)  # Mekanizmanın sıfırlanması için bekle
         return True
         
     def _is_task_complete(self) -> bool:
