@@ -111,7 +111,7 @@ class InitParameters:
     camera_resolution: int = RESOLUTION.HD720
     depth_mode: int = DEPTH_MODE.QUALITY
     coordinate_units: int = UNIT.METER
-    sdk_cuda_ctx: bool = True
+    sdk_gpu_id: int = 0
     coordinate_system: int = COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
     depth_minimum_distance: float = 0.3
     depth_maximum_distance: float = 40.0
