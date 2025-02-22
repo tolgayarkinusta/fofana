@@ -238,8 +238,9 @@ class PathPlanner:
         Returns:
             Tuple[int, int]: (x, y) costmap coordinates
         """
-        x = int((position[0] + 10.0) / self.resolution)  # Offset by 10m to center map
-        y = int((position[2] + 10.0) / self.resolution)  # Use Z as Y in top-down view
+        # Ensure coordinates are within map bounds
+        x = min(max(0, int((position[0] + self.map_size/2) / self.resolution)), self.map_size-1)
+        y = min(max(0, int((position[2] + self.map_size/2) / self.resolution)), self.map_size-1)
         return x, y
         
     def detect_obstacles(self) -> Optional[Dict[str, List[Dict]]]:
