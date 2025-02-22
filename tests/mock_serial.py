@@ -21,6 +21,9 @@ class Serial:
         # Mock MAVLink heartbeat message
         return b'\xfe\t\x00\x00\x00\x00\x00\x00\x00\x03\x04\x03\x00\x00\x00\x00\x00\x7f'
         
+    def inWaiting(self):
+        return 18  # Length of mock heartbeat message
+        
     def close(self):
         self.is_open = False
         
