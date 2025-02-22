@@ -5,10 +5,13 @@ import sys
 import os
 from unittest.mock import patch, MagicMock
 
-# Add mock ZED SDK to path
+# Add mock modules to path
 sys.path.insert(0, os.path.dirname(__file__))
 import mock_zed_sdk
+import mock_serial
+
 sys.modules['pyzed.sl'] = mock_zed_sdk
+sys.modules['serial'] = mock_serial
 
 from fofana.main import RoboBoat2025Runner
 from fofana.core.mavlink_controller import USVController

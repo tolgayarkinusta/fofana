@@ -40,6 +40,9 @@ class Mat:
         self.data = None
         
     def get_data(self):
+        import torch
+        if isinstance(self.data, np.ndarray):
+            return torch.from_numpy(self.data).cuda()
         return self.data
 
 class RESOLUTION:
