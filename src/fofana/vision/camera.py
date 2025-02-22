@@ -1,4 +1,12 @@
-"""ZED2i camera integration module with CUDA acceleration."""
+"""
+ZED2i kamera entegrasyon modülü (CUDA hızlandırma destekli).
+
+Özellikler:
+- HD720 çözünürlükte görüntü yakalama
+- CUDA destekli derinlik algılama
+- Stereo görüş ile 3B nokta bulutu oluşturma
+- Gerçek zamanlı görüntü işleme için optimize edilmiş
+"""
 import pyzed.sl as sl
 import numpy as np
 import torch
