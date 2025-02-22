@@ -110,11 +110,12 @@ class Mesh:
 class InitParameters:
     camera_resolution: int = RESOLUTION.HD720
     depth_mode: int = DEPTH_MODE.QUALITY
-    coordinate_units: int = UNIT.METER
-    sdk_gpu_id: int = 0
-    coordinate_system: int = COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
-    depth_minimum_distance: float = 0.3
-    depth_maximum_distance: float = 40.0
+    coordinate_units: int = UNIT.MILLIMETER
+    coordinate_system: int = COORDINATE_SYSTEM.IMAGE
+    sdk_verbose: int = 1
+    sdk_gpu_id: int = -1
+    depth_minimum_distance: float = -1.0
+    depth_maximum_distance: float = -1.0
 
 @dataclass
 class RuntimeParameters:

@@ -26,11 +26,12 @@ class ZEDCamera:
         self.init_params = sl.InitParameters()
         self.init_params.camera_resolution = sl.RESOLUTION.HD720
         self.init_params.depth_mode = sl.DEPTH_MODE.QUALITY  # Better for untextured surfaces like water
-        self.init_params.coordinate_units = sl.UNIT.METER
-        self.init_params.sdk_gpu_id = 0  # Use first GPU
-        self.init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
-        self.init_params.depth_minimum_distance = 0.3  # Minimum 30cm
-        self.init_params.depth_maximum_distance = 40.0  # Maximum 40m for buoy detection
+        self.init_params.coordinate_units = sl.UNIT.MILLIMETER
+        self.init_params.coordinate_system = sl.COORDINATE_SYSTEM.IMAGE
+        self.init_params.depth_minimum_distance = -1.0  # Use default minimum distance
+        self.init_params.depth_maximum_distance = -1.0  # Use default maximum distance
+        self.init_params.sdk_verbose = 1  # Enable SDK verbose mode
+        self.init_params.sdk_gpu_id = -1  # Auto-select most powerful GPU
         
         # Runtime parameters optimized for water surface filtering
         self.runtime_params = sl.RuntimeParameters()
