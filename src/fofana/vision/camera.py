@@ -34,7 +34,7 @@ class ZEDCamera:
         self.init_params.camera_fps = 30  # Standard FPS for marine applications
         self.init_params.sdk_verbose = 1  # Enable SDK verbose mode
         self.init_params.sdk_gpu_id = -1  # Auto-select most powerful GPU
-        self.init_params.depth_stabilization = True  # Enable depth stabilization
+        self.init_params.depth_stabilization = 1  # Enable depth stabilization (1-100, 0 to disable)
         self.init_params.enable_right_side_measure = False  # Not needed for our use case
         self.init_params.camera_disable_self_calib = False  # Enable auto calibration
         self.init_params.optional_settings_path = ""  # Use default settings

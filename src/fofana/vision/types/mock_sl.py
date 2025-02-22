@@ -124,7 +124,7 @@ class InitParameters:
     depth_maximum_distance: float = 40.0
     enable_image_enhancement: bool = True
     camera_fps: int = 30
-    depth_stabilization: bool = True
+    depth_stabilization: int = 1  # Default value for depth stabilization (1-100, 0 to disable)
     enable_right_side_measure: bool = False
     camera_disable_self_calib: bool = False
     optional_settings_path: str = ""
