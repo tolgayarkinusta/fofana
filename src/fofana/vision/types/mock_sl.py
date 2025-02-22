@@ -114,6 +114,11 @@ class PositionalTrackingParameters:
     set_gravity_as_origin: bool = True
 
 @dataclass
+class MeshFilterParameters:
+    remove_duplicate_vertices: bool = True
+    min_vertex_dist_meters: float = 0.01
+
+@dataclass
 class SpatialMappingParameters:
     resolution_meter: float = 0.1
     range_meter: float = 20.0
@@ -123,6 +128,10 @@ class SpatialMappingParameters:
     map_type: int = SPATIAL_MAP_TYPE.MESH
     set_gravity_as_origin: bool = True
     enable_mesh_optimization: bool = True
+    
+    def __post_init__(self):
+        """Initialize mutable defaults."""
+        self.mesh_filter_params = MeshFilterParameters()
 
 @dataclass
 class ObjectDetectionParameters:
