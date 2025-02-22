@@ -99,7 +99,7 @@ class ZEDCamera:
             self.zed.disable_positional_tracking()
             return False
         elif tracking_status != sl.POSITIONAL_TRACKING_STATE.OK:
-            print(f"Pozisyon takibi başlatılamadı! Durum: {tracking_status.name}")
+            print(f"Pozisyon takibi başlatılamadı! Durum: {str(tracking_status)}")
             self.zed.disable_positional_tracking()
             return False
             
@@ -118,7 +118,7 @@ class ZEDCamera:
         # Verify tracking is actually running
         tracking_status = self.zed.get_positional_tracking_status()
         if tracking_status != sl.POSITIONAL_TRACKING_STATE.OK:
-            print(f"Pozisyon takibi hazır değil! Durum: {tracking_status.name}")
+            print(f"Pozisyon takibi hazır değil! Durum: {str(tracking_status)}")
             return False
             
         mapping_params = sl.SpatialMappingParameters()
