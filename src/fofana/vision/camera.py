@@ -93,8 +93,12 @@ class ZEDCamera:
         time.sleep(0.5)
         
         # Verify tracking state
-        tracking_state = self.zed.get_position_state()
-        if tracking_state != sl.POSITIONAL_TRACKING_STATE.OK:
+        tracking_state = self.zed.get_positional_tracking_state()
+        if tracking_state == sl.POSITIONAL_TRACKING_STATE.OFF:
+            print("Pozisyon takibi etkin değil! Önce pozisyon takibini etkinleştirin.")
+            self.zed.disable_positional_tracking()
+            return False
+        elif tracking_state != sl.POSITIONAL_TRACKING_STATE.OK:
             print(f"Pozisyon takibi başlatılamadı! Durum: {tracking_state}")
             self.zed.disable_positional_tracking()
             return False
@@ -103,23 +107,16 @@ class ZEDCamera:
         return True
         
     def enable_spatial_mapping(self) -> bool:
-        """Enable spatial mapping for environment reconstruction optimized for marine environment.
-        
-        Uses LOW resolution preset for outdoor use and LONG range preset for marine environment.
-        
-        Returns:
-            bool: True if mapping enabled successfully
-        """
+        """Spatial mapping'i etkinleştirir."""
         if not self.zed.is_opened():
             print("Kamera açık değil!")
             return False
             
-        if not self.tracking_enabled:
-            print("Pozisyon takibi etkin değil! Önce pozisyon takibini etkinleştirin.")
+        if not self.enable_positional_tracking():
             return False
             
         # Verify tracking is actually running
-        tracking_state = self.zed.get_position_state()
+        tracking_state = self.zed.get_positional_tracking_state()
         if tracking_state != sl.POSITIONAL_TRACKING_STATE.OK:
             print(f"Pozisyon takibi hazır değil! Durum: {tracking_state}")
             return False
@@ -136,6 +133,7 @@ class ZEDCamera:
         status = self.zed.enable_spatial_mapping(mapping_params)
         if status != sl.ERROR_CODE.SUCCESS:
             print(f"Spatial mapping başlatılamadı: {status}")
+            self.disable_positional_tracking()
             return False
             
         self.mapping_enabled = True
