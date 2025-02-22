@@ -40,10 +40,14 @@ class Mat:
         self.data = None
         
     def get_data(self):
-        import torch
-        if isinstance(self.data, np.ndarray):
-            return torch.from_numpy(self.data).cuda()
-        return self.data
+        # Mock CUDA tensor for testing
+        class MockTensor:
+            def __init__(self, data):
+                self.data = data
+                self.is_cuda = True
+            def cpu(self):
+                return self.data
+        return MockTensor(self.data)
 
 class RESOLUTION:
     HD720 = 2

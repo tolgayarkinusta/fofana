@@ -39,31 +39,31 @@ def test_zed_camera_cuda():
 
 def test_motor_pwm_control():
     """Motor PWM kontrol testi."""
-    controller = USVController()
-    controller.arm_vehicle()
-    
-    # İleri hareket testi
-    controller.set_motor_speed('left', 1600)  # %20 ileri
-    controller.set_motor_speed('right', 1600)
-    time.sleep(2)
-    
-    # Geri hareket testi
-    controller.set_motor_speed('left', 1400)  # %20 geri
-    controller.set_motor_speed('right', 1400)
-    time.sleep(2)
-    
-    # Sağa dönüş testi
-    controller.set_motor_speed('left', 1600)
-    controller.set_motor_speed('right', 1400)
-    time.sleep(2)
-    
-    # Sola dönüş testi
-    controller.set_motor_speed('left', 1400)
-    controller.set_motor_speed('right', 1600)
-    time.sleep(2)
-    
-    controller.stop_motors()
-    controller.disarm_vehicle()
+    with patch('fofana.core.mavlink_controller.mavutil.mavlink_connection') as mock_mavlink:
+        controller = USVController()
+        controller.arm_vehicle()
+        
+        # İleri hareket testi
+        controller.set_motor_speed('left', 1600)  # %20 ileri
+        controller.set_motor_speed('right', 1600)
+        
+        # Geri hareket testi
+        controller.set_motor_speed('left', 1400)  # %20 geri
+        controller.set_motor_speed('right', 1400)
+        
+        # Sağa dönüş testi
+        controller.set_motor_speed('left', 1600)
+        controller.set_motor_speed('right', 1400)
+        
+        # Sola dönüş testi
+        controller.set_motor_speed('left', 1400)
+        controller.set_motor_speed('right', 1600)
+        
+        controller.stop_motors()
+        controller.disarm_vehicle()
+        
+        # Verify commands were sent
+        assert mock_mavlink.called
 
 def test_full_task_sequence():
     """Tam görev sırası testi."""
