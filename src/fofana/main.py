@@ -18,8 +18,8 @@ Bu modül şu işlevleri sağlar:
 """
 import time
 from typing import Dict, Any, Optional
-from .tasks import TaskManager
-from .vision.camera import ZEDCamera
+from fofana.tasks import TaskManager
+from fofana.vision.camera import ZEDCamera
 
 class RoboBoat2025Runner:
     def __init__(self):

@@ -12,8 +12,12 @@ class RESOLUTION:
     HD1080 = 1
 
 class DEPTH_MODE:
-    ULTRA = 0
-    STANDARD = 1
+    NONE = 0
+    PERFORMANCE = 1
+    QUALITY = 2
+    ULTRA = 3
+    NEURAL = 4
+    NEURAL_PLUS = 5
 
 class UNIT:
     METER = 0
