@@ -160,10 +160,13 @@ class ZEDCamera:
         """Close the camera connection."""
         if self.object_detection_enabled:
             self.zed.disable_object_detection()
+            self.object_detection_enabled = False
         if self.mapping_enabled:
             self.zed.disable_spatial_mapping()
+            self.mapping_enabled = False
         if self.tracking_enabled:
             self.zed.disable_positional_tracking()
+            self.tracking_enabled = False
         self.zed.close()
         
     def get_frame(self) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[Dict[str, float]]]:
