@@ -122,7 +122,26 @@ class MockZEDCamera:
                 return {'yellow': 70}
             return {'red': 75 if x < 0 else 10, 'green': 75 if x > 0 else 10}
             
+    def get_spatial_map(self) -> Optional[Mesh]:
+        """Return mock spatial map."""
+        if not self.mapping_enabled:
+            return None
+        return Mesh()
+        
+    def get_point_cloud(self) -> np.ndarray:
+        """Return mock point cloud."""
+        return np.zeros((1080, 1920, 4), dtype=np.float32)  # XYZRGBA format
+        
+    def get_depth_map(self) -> np.ndarray:
+        """Return mock depth map."""
+        return np.ones((1080, 1920), dtype=np.float32) * 2.0  # 2m depth
+        
+    def get_confidence_map(self) -> np.ndarray:
+        """Return mock confidence map."""
+        return np.ones((1080, 1920), dtype=np.uint8) * 100  # High confidence
+        
     def close(self):
+        """Close camera and disable all features."""
         self.is_open = False
         self.tracking_enabled = False
         self.mapping_enabled = False
