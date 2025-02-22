@@ -7,7 +7,7 @@ import os
 
 # Use mock camera for testing
 from fofana.vision.types.mock_sl import MockSL as sl
-from fofana.vision.mock_camera import MockZEDCamera as ZEDCamera
+from fofana.vision.mock_camera import MockZEDCamera
 from fofana.navigation.buoy_detector import BuoyDetector
 from fofana.navigation.path_planner import (
     PathPlanner, FIRST_GATE_SPACING_MAX, GATE_WIDTH_MIN, GATE_WIDTH_MAX
