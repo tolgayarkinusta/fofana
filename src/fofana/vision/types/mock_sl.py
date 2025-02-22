@@ -1,6 +1,5 @@
 """Mock ZED SDK types for testing."""
 from dataclasses import dataclass, field
-from typing import Optional, Tuple
 import numpy as np
 
 class ERROR_CODE:
@@ -252,11 +251,11 @@ class Objects:
 
 class POSITIONAL_TRACKING_STATE:
     """Mock ZED SDK positional tracking states."""
-    OFF = 0
-    OK = 1
-    SEARCHING = 2
-    FPS_TOO_LOW = 3
-    SEARCHING_FLOOR_PLANE = 4
+    OFF = "OFF"  # Tracking is disabled
+    OK = "OK"  # Tracking is working normally
+    FPS_TOO_LOW = "FPS_TOO_LOW"  # FPS too low for accurate tracking
+    SEARCHING_FLOOR_PLANE = "SEARCHING_FLOOR_PLANE"  # Looking for floor plane
+    UNAVAILABLE = "UNAVAILABLE"  # Tracking unavailable
 
 class Camera:
     """Mock ZED camera."""
@@ -310,7 +309,9 @@ class Camera:
         """Get current positional tracking status."""
         if not self._tracking_enabled:
             return POSITIONAL_TRACKING_STATE.OFF
-        return self._tracking_state
+        if not hasattr(self._tracking_state, 'name'):
+            return self._tracking_state  # Already a string value
+        return self._tracking_state.name
         
     def enable_spatial_mapping(self, params):
         self._mapping_enabled = True
