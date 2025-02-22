@@ -58,15 +58,13 @@ class PathPlanner:
         
     def update_costmap(self) -> None:
         """Update costmap with detected obstacles."""
-        # Get obstacles from detector
-        frame = self.camera.get_frame()[0]  # Get RGB frame
-        if frame is None:
-            return
-            
-        obstacles = self.buoy_detector.detect_obstacles(frame)
-        
         # Create empty costmap
         self.costmap = np.zeros((self.map_size, self.map_size))
+        
+        # Get obstacles from detector
+        obstacles = self.detect_obstacles()
+        if not obstacles:
+            return
         
         # Add yellow buoys with larger padding (endangered species)
         for buoy in obstacles['yellow_buoys']:
@@ -243,6 +241,18 @@ class PathPlanner:
         x = int((position[0] + 10.0) / self.resolution)  # Offset by 10m to center map
         y = int((position[2] + 10.0) / self.resolution)  # Use Z as Y in top-down view
         return x, y
+        
+    def detect_obstacles(self) -> Optional[Dict[str, List[Dict]]]:
+        """Detect obstacles using buoy detector.
+        
+        Returns:
+            Optional[Dict[str, List[Dict]]]: Detected obstacles by category
+        """
+        frame = self.camera.get_frame()[0]  # Get RGB frame
+        if frame is None:
+            return None
+            
+        return self.buoy_detector.detect_obstacles(frame)
         
     def _add_circular_cost(self, x: int, y: int, radius: int, cost: float) -> None:
         """Add circular cost region to costmap.
