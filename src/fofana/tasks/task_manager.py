@@ -36,10 +36,15 @@ class TaskState(Enum):
     FAILED = "failed"
 
 class TaskManager:
-    def __init__(self):
-        """Initialize task manager with required components."""
-        self.usv_controller = USVController()
-        self.camera = ZEDCamera()
+    def __init__(self, camera: Optional[ZEDCamera] = None, controller: Optional[USVController] = None):
+        """Initialize task manager with required components.
+        
+        Args:
+            camera: Optional ZEDCamera instance
+            controller: Optional USVController instance
+        """
+        self.camera = camera or ZEDCamera()
+        self.usv_controller = controller or USVController()
         self.buoy_detector = BuoyDetector(self.camera)
         self.path_planner = PathPlanner(self.usv_controller, self.camera)
         
