@@ -9,13 +9,13 @@ ZED2i kamera entegrasyon modülü (CUDA hızlandırma destekli).
 - Spatial mapping ile çevre haritalama
 - Gerçek zamanlı görüntü işleme için optimize edilmiş
 """
+from typing import Dict, Optional, Tuple
+import numpy as np
+import torch
 try:
     import pyzed.sl as sl
 except ImportError:
     from .types.mock_sl import MockSL as sl
-import numpy as np
-import torch
-from typing import Tuple, Optional, Dict, List
 
 class ZEDCamera:
     def __init__(self):
@@ -28,16 +28,27 @@ class ZEDCamera:
         self.init_params.depth_mode = sl.DEPTH_MODE.QUALITY  # Better for untextured surfaces like water
         self.init_params.coordinate_units = sl.UNIT.MILLIMETER
         self.init_params.coordinate_system = sl.COORDINATE_SYSTEM.IMAGE
-        self.init_params.depth_minimum_distance = -1.0  # Use default minimum distance
-        self.init_params.depth_maximum_distance = -1.0  # Use default maximum distance
+        self.init_params.depth_minimum_distance = -1.0  # Use SDK default
+        self.init_params.depth_maximum_distance = -1.0  # Use SDK default
+        self.init_params.enable_image_enhancement = True  # Enhance image quality
+        self.init_params.camera_fps = 30  # Standard FPS for marine applications
         self.init_params.sdk_verbose = 1  # Enable SDK verbose mode
         self.init_params.sdk_gpu_id = -1  # Auto-select most powerful GPU
+        self.init_params.depth_stabilization = True  # Enable depth stabilization
+        self.init_params.enable_right_side_measure = False  # Not needed for our use case
+        self.init_params.camera_disable_self_calib = False  # Enable auto calibration
+        self.init_params.optional_settings_path = ""  # Use default settings
+        self.init_params.sensors_required = False  # Don't require additional sensors
+        self.init_params.enable_image_validity_check = False  # Skip validity check for performance
         
         # Runtime parameters optimized for water surface filtering
         self.runtime_params = sl.RuntimeParameters()
-        self.runtime_params.sensing_mode = sl.SENSING_MODE.STANDARD
-        self.runtime_params.confidence_threshold = 50  # Filter unstable depth measurements
-        self.runtime_params.texture_confidence_threshold = 90  # High threshold for water surface
+        self.runtime_params.enable_depth = True  # Enable depth computation
+        self.runtime_params.confidence_threshold = 95  # Default confidence threshold
+        self.runtime_params.texture_confidence_threshold = 100  # Maximum texture confidence for water
+        self.runtime_params.remove_saturated_areas = True  # Handle water reflections
+        self.runtime_params.measure3D_reference_frame = sl.REFERENCE_FRAME.WORLD  # Use world reference frame for consistent mapping
+        self.runtime_params.enable_fill_mode = False  # Disable fill mode for better accuracy
         
         # SLAM and mapping status
         self.tracking_enabled = False
@@ -213,12 +224,19 @@ class ZEDCamera:
             return False
             
         detection_params = sl.ObjectDetectionParameters()
-        detection_params.enable_tracking = True
-        detection_params.enable_mask_output = True
-        detection_params.detection_model = sl.DETECTION_MODEL.MULTI_CLASS_BOX
-        detection_params.max_range = 40.0  # Extended range for buoy detection
+        detection_params.enable_tracking = True  # Enable object tracking
+        detection_params.enable_segmentation = False  # Default value
+        detection_params.detection_model = sl.DETECTION_MODEL.MULTI_CLASS_BOX_FAST  # Default model
+        detection_params.max_range = -1.0  # Use SDK default
         detection_params.filtering_mode = sl.OBJECT_FILTERING_MODE.NMS3D  # Better 3D filtering
-        detection_params.confidence_threshold = 50  # Match depth confidence
+        detection_params.prediction_timeout_s = 0.2  # Fast prediction for real-time
+        detection_params.allow_reduced_precision_inference = False  # Full precision for accuracy
+        detection_params.instance_module_id = 0  # Default instance module
+        # Use default values for optional parameters
+        detection_params.batch_trajectories_parameters = sl.BatchParameters()  # Default batch parameters
+        detection_params.fused_objects_group_name = ""  # No fused objects group
+        detection_params.custom_onnx_file = ""  # No custom ONNX model
+        detection_params.custom_onnx_dynamic_input_shape = sl.Resolution(512, 512)  # Default input shape
         
         status = self.zed.enable_object_detection(detection_params)
         if status != sl.ERROR_CODE.SUCCESS:
