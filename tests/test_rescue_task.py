@@ -1,6 +1,17 @@
 """RoboBoat 2025 kurtarma görevi testleri."""
 import pytest
+import sys
+import os
 from unittest.mock import patch, MagicMock
+
+# Add mock modules to path
+sys.path.insert(0, os.path.dirname(__file__))
+import mock_zed_sdk
+import mock_serial
+
+sys.modules['pyzed.sl'] = mock_zed_sdk
+sys.modules['serial'] = mock_serial
+
 from fofana.tasks.rescue_task import RescueTask
 
 def test_water_spray_control():
