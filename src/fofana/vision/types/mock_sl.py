@@ -164,12 +164,13 @@ class PositionalTrackingParameters:
 class SpatialMappingParameters:
     """Class containing a set of parameters for the spatial mapping module."""
     def __init__(self):
-        self._resolution = MAPPING_RESOLUTION.LOW
-        self._range = MAPPING_RANGE.LONG
+        """Initialize spatial mapping parameters optimized for marine environment."""
+        self._resolution = MAPPING_RESOLUTION.LOW  # Better for outdoor/marine
+        self._range = MAPPING_RANGE.LONG  # Extended range for marine environment
         self.use_chunk_only = True  # Memory efficient mapping
         self.max_memory_usage = 2048  # 2GB memory limit
         self.save_texture = True  # Enable texture for visualization
-        self.map_type = SPATIAL_MAP_TYPE.MESH  # Use mesh mapping
+        self.map_type = SPATIAL_MAP_TYPE.MESH  # Mesh for better water surface mapping
         self.reverse_vertex_order = False  # Default vertex order
         
     def set_resolution(self, resolution):
@@ -305,8 +306,10 @@ class Camera:
         self._tracking_state = POSITIONAL_TRACKING_STATE.OK
         return ERROR_CODE.SUCCESS
         
-    def get_positional_tracking_state(self):
-        """Get current positional tracking state."""
+    def get_positional_tracking_status(self):
+        """Get current positional tracking status."""
+        if not self._tracking_enabled:
+            return POSITIONAL_TRACKING_STATE.OFF
         return self._tracking_state
         
     def enable_spatial_mapping(self, params):
