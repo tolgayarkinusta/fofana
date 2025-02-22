@@ -19,17 +19,21 @@ class ZEDCamera:
         """Initialize ZED2i camera with CUDA acceleration."""
         self.zed = sl.Camera()
         
-        # Create camera configuration
+        # Create camera configuration for marine environment
         self.init_params = sl.InitParameters()
         self.init_params.camera_resolution = sl.RESOLUTION.HD720
-        self.init_params.depth_mode = sl.DEPTH_MODE.ULTRA
+        self.init_params.depth_mode = sl.DEPTH_MODE.STANDARD  # Better for obstacle detection
         self.init_params.coordinate_units = sl.UNIT.METER
         self.init_params.sdk_cuda_ctx = True  # Enable CUDA context sharing
         self.init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+        self.init_params.depth_minimum_distance = 0.3  # Minimum 30cm
+        self.init_params.depth_maximum_distance = 40.0  # Maximum 40m for buoy detection
         
-        # Runtime parameters
+        # Runtime parameters optimized for water surface filtering
         self.runtime_params = sl.RuntimeParameters()
         self.runtime_params.sensing_mode = sl.SENSING_MODE.STANDARD
+        self.runtime_params.confidence_threshold = 50  # Filter unstable depth measurements
+        self.runtime_params.texture_confidence_threshold = 90  # High threshold for water surface
         
         # SLAM and mapping status
         self.tracking_enabled = False
@@ -89,6 +93,12 @@ class ZEDCamera:
         mapping_params.max_memory_usage = 2048  # 2GB memory limit
         mapping_params.save_texture = True  # Enable texture saving for visualization
         mapping_params.map_type = sl.SPATIAL_MAP_TYPE.MESH  # Use mesh for better accuracy
+        
+        # Configure for marine environment
+        mapping_params.set_gravity_as_origin = True  # Use gravity for stable water surface reference
+        mapping_params.enable_mesh_optimization = True  # Better noise filtering
+        mapping_params.mesh_filter_params.remove_duplicate_vertices = True  # Clean mesh
+        mapping_params.mesh_filter_params.min_vertex_dist_meters = 0.01  # 1cm minimum vertex distance
         
         status = self.zed.enable_spatial_mapping(mapping_params)
         if status != sl.ERROR_CODE.SUCCESS:
@@ -189,7 +199,9 @@ class ZEDCamera:
         detection_params.enable_tracking = True
         detection_params.enable_mask_output = True
         detection_params.detection_model = sl.DETECTION_MODEL.MULTI_CLASS_BOX
-        detection_params.max_range = 20.0  # Match spatial mapping range
+        detection_params.max_range = 40.0  # Extended range for buoy detection
+        detection_params.filtering_mode = sl.OBJECT_FILTERING_MODE.NMS3D  # Better 3D filtering
+        detection_params.confidence_threshold = 50  # Match depth confidence
         
         status = self.zed.enable_object_detection(detection_params)
         if status != sl.ERROR_CODE.SUCCESS:
