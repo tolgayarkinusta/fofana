@@ -162,24 +162,23 @@ class PositionalTrackingParameters:
 
 @dataclass
 class SpatialMappingParameters:
-    """Class containing a set of parameters for the spatial mapping module.
-    
-    Attributes:
-        resolution_meter (float): Resolution in meters (0.01 to 0.2)
-        range_meter (float): Maximum depth mapping range in meters (1.0 to 40.0)
-        use_chunk_only (bool): Memory efficient mapping
-        max_memory_usage (int): Maximum memory in MB (default 2048)
-        save_texture (bool): Enable texture saving
-        map_type (int): Type of spatial map (MESH or FUSED_POINT_CLOUD)
-        reverse_vertex_order (bool): Vertex order for mesh
-    """
-    resolution_meter: float = 0.1  # Default for marine environment
-    range_meter: float = 20.0  # Default for marine environment
-    use_chunk_only: bool = True  # Memory efficient mapping
-    max_memory_usage: int = 2048  # 2GB memory limit
-    save_texture: bool = True  # Enable texture for visualization
-    map_type: int = SPATIAL_MAP_TYPE.MESH  # Use mesh mapping
-    reverse_vertex_order: bool = False  # Default vertex order
+    """Class containing a set of parameters for the spatial mapping module."""
+    def __init__(self):
+        self._resolution = MAPPING_RESOLUTION.LOW
+        self._range = MAPPING_RANGE.LONG
+        self.use_chunk_only = True  # Memory efficient mapping
+        self.max_memory_usage = 2048  # 2GB memory limit
+        self.save_texture = True  # Enable texture for visualization
+        self.map_type = SPATIAL_MAP_TYPE.MESH  # Use mesh mapping
+        self.reverse_vertex_order = False  # Default vertex order
+        
+    def set_resolution(self, resolution):
+        """Set spatial mapping resolution."""
+        self._resolution = resolution
+        
+    def set_range(self, range_value):
+        """Set spatial mapping range."""
+        self._range = range_value
 
 @dataclass
 class BatchParameters:
@@ -250,6 +249,14 @@ class Objects:
         self.is_tracked = True
         self.is_new = False
 
+class POSITIONAL_TRACKING_STATE:
+    """Mock ZED SDK positional tracking states."""
+    OFF = 0
+    OK = 1
+    SEARCHING = 2
+    FPS_TOO_LOW = 3
+    SEARCHING_FLOOR_PLANE = 4
+
 class Camera:
     """Mock ZED camera."""
     def __init__(self):
@@ -262,6 +269,7 @@ class Camera:
         self._xyz = np.zeros((720, 1280, 4), dtype=np.float32)  # XYZRGBA format
         self._pose = Pose()
         self._objects = Objects()
+        self._tracking_state = POSITIONAL_TRACKING_STATE.OFF
         
     def open(self, init_params):
         """Open camera with initialization parameters."""
@@ -294,7 +302,12 @@ class Camera:
             
     def enable_positional_tracking(self, params=None):
         self._tracking_enabled = True
+        self._tracking_state = POSITIONAL_TRACKING_STATE.OK
         return ERROR_CODE.SUCCESS
+        
+    def get_positional_tracking_state(self):
+        """Get current positional tracking state."""
+        return self._tracking_state
         
     def enable_spatial_mapping(self, params):
         self._mapping_enabled = True
@@ -363,6 +376,7 @@ class MockSL:
     OBJECT_FILTERING_MODE = OBJECT_FILTERING_MODE
     MEASURE = MEASURE
     VIEW = VIEW
+    POSITIONAL_TRACKING_STATE = POSITIONAL_TRACKING_STATE
     
     Camera = Camera
     Mat = Mat
