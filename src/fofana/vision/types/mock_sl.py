@@ -63,13 +63,16 @@ class Mat:
         else:
             self._data = data.copy()
 
-@dataclass
 class Pose:
+    """Mock ZED SDK Pose class."""
     def __init__(self):
         self._translation = [1.0, 2.0, 3.0]
         self._rotation = [0.1, 0.2, 0.3]
-    
+        self._timestamp = 0
+        self._confidence = 100
+        
     def get_translation(self):
+        """Get position vector."""
         class Translation:
             def __init__(self, values):
                 self._values = values
@@ -78,7 +81,17 @@ class Pose:
         return Translation(self._translation)
         
     def get_euler_angles(self):
+        """Get rotation angles in radians."""
         return self._rotation
+        
+    def get_pose_data(self):
+        """Get full pose data."""
+        return {
+            'translation': self._translation,
+            'rotation': self._rotation,
+            'timestamp': self._timestamp,
+            'confidence': self._confidence
+        }
 
 @dataclass
 class Mesh:
@@ -164,6 +177,8 @@ class Camera:
         self._frame = np.zeros((720, 1280, 3), dtype=np.uint8)
         self._depth = np.ones((720, 1280), dtype=np.float32) * 2.0
         self._xyz = np.zeros((720, 1280, 3), dtype=np.float32)
+        self._pose = Pose()
+        self._objects = Objects()
         
     def open(self, init_params):
         self._is_opened = True
@@ -197,6 +212,19 @@ class Camera:
         
     def enable_object_detection(self, params):
         self._object_detection_enabled = True
+        return ERROR_CODE.SUCCESS
+        
+    def get_position(self, pose, reference_frame):
+        """Get current position."""
+        pose._translation = self._pose._translation
+        pose._rotation = self._pose._rotation
+        return ERROR_CODE.SUCCESS
+        
+    def retrieve_objects(self, objects, runtime_params):
+        """Get detected objects."""
+        if not self._object_detection_enabled:
+            return ERROR_CODE.FAILURE
+        objects.object_list = self._objects.object_list
         return ERROR_CODE.SUCCESS
         
     def close(self):
