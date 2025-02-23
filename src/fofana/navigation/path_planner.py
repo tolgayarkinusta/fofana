@@ -3,6 +3,12 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 from ..core.mavlink_controller import USVController
 
+# Gate dimensions (feet)
+GATE_WIDTH_MIN = 6.0  # Minimum width between buoys
+GATE_WIDTH_MAX = 10.0  # Maximum width between buoys
+FIRST_GATE_SPACING_MIN = 25.0  # Minimum distance between first two gates
+FIRST_GATE_SPACING_MAX = 100.0  # Maximum distance between first two gates
+
 class PathPlanner:
     def __init__(self, controller: USVController, camera):
         """Initialize path planner.
@@ -99,6 +105,55 @@ class PathPlanner:
             (buoy1['position'][2] + buoy2['position'][2])/2
         )
         
+    def _find_closest_gate(self, red_buoys: List[Dict], green_buoys: List[Dict]) -> Optional[Tuple[Dict, Dict]]:
+        """Find closest valid gate formed by red and green buoys.
+        
+        Args:
+            red_buoys: List of red buoy detections
+            green_buoys: List of green buoy detections
+            
+        Returns:
+            Optional[Tuple[Dict, Dict]]: Closest valid gate as (red_buoy, green_buoy) or None
+        """
+        if not red_buoys or not green_buoys:
+            return None
+            
+        # Convert feet to meters for calculations
+        min_width = GATE_WIDTH_MIN * 0.3048  # 6 feet to meters
+        max_width = GATE_WIDTH_MAX * 0.3048  # 10 feet to meters
+        min_spacing = FIRST_GATE_SPACING_MIN * 0.3048  # 25 feet to meters
+        max_spacing = FIRST_GATE_SPACING_MAX * 0.3048  # 100 feet to meters
+        
+        closest_gate = None
+        min_distance = float('inf')
+        
+        for red in red_buoys:
+            for green in green_buoys:
+                # Calculate gate width
+                rx, _, rz = red['position']
+                gx, _, gz = green['position']
+                width = np.sqrt((rx - gx)**2 + (rz - gz)**2)
+                
+                # Calculate gate center
+                center_x = (rx + gx) / 2
+                center_z = (rz + gz) / 2
+                
+                # Calculate distance from origin (previous gate)
+                distance = np.sqrt(center_x**2 + center_z**2)
+                
+                # Check if width is within valid range
+                if min_width <= width <= max_width:
+                    # For second gate, check spacing
+                    if hasattr(self, 'gates_passed') and self.gates_passed > 0:
+                        if not (min_spacing <= distance <= max_spacing):
+                            continue
+                    
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_gate = (red, green)
+        
+        return closest_gate
+
     def _find_safe_point(self, target: Tuple[float, float, float],
                         obstacles: List[Tuple[Tuple[float, float, float], float]]) -> Tuple[float, float, float]:
         """Find safe point near target avoiding obstacles.
