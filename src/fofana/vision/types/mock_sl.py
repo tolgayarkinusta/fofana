@@ -308,8 +308,17 @@ class Camera:
     def get_positional_tracking_status(self):
         """Get current positional tracking status."""
         if not self._tracking_enabled:
-            return POSITIONAL_TRACKING_STATE.OFF
-        return str(self._tracking_state)  # Always return string representation
+            return "OFF"
+        if self._tracking_state == POSITIONAL_TRACKING_STATE.OFF:
+            return "OFF"
+        elif self._tracking_state == POSITIONAL_TRACKING_STATE.OK:
+            return "OK"
+        elif self._tracking_state == POSITIONAL_TRACKING_STATE.FPS_TOO_LOW:
+            return "FPS_TOO_LOW"
+        elif self._tracking_state == POSITIONAL_TRACKING_STATE.SEARCHING_FLOOR_PLANE:
+            return "SEARCHING_FLOOR_PLANE"
+        else:
+            return "UNAVAILABLE"
         
     def enable_spatial_mapping(self, params):
         self._mapping_enabled = True
