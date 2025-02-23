@@ -99,7 +99,16 @@ class ZEDCamera:
             self.zed.disable_positional_tracking()
             return False
         elif tracking_status != sl.POSITIONAL_TRACKING_STATE.OK:
-            print(f"Pozisyon takibi başlatılamadı! Durum: {str(tracking_status)}")
+            status_str = "UNAVAILABLE"
+            if tracking_status == sl.POSITIONAL_TRACKING_STATE.OFF:
+                status_str = "OFF"
+            elif tracking_status == sl.POSITIONAL_TRACKING_STATE.OK:
+                status_str = "OK"
+            elif tracking_status == sl.POSITIONAL_TRACKING_STATE.FPS_TOO_LOW:
+                status_str = "FPS_TOO_LOW"
+            elif tracking_status == sl.POSITIONAL_TRACKING_STATE.SEARCHING_FLOOR_PLANE:
+                status_str = "SEARCHING_FLOOR_PLANE"
+            print(f"Pozisyon takibi başlatılamadı! Durum: {status_str}")
             self.zed.disable_positional_tracking()
             return False
             
