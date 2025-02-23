@@ -309,9 +309,7 @@ class Camera:
         """Get current positional tracking status."""
         if not self._tracking_enabled:
             return POSITIONAL_TRACKING_STATE.OFF
-        if not hasattr(self._tracking_state, 'name'):
-            return self._tracking_state  # Already a string value
-        return self._tracking_state.name
+        return str(self._tracking_state)  # Always return string representation
         
     def enable_spatial_mapping(self, params):
         self._mapping_enabled = True
